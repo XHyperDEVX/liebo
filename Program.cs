@@ -14,6 +14,7 @@ public class Program
     public static SocketGuild guild;
     public static SocketTextChannel logchannel;
     public static SocketTextChannel welcomechannel;
+    public static SocketTextChannel jobchannel;
     private static HttpListener healtcheck_host = new HttpListener();
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
@@ -55,6 +56,8 @@ public class Program
         _client.SlashCommandExecuted += SlashCommandHandler;
         _client.UserJoined += UserJoinedHandler;
         _client.UserLeft += UserLeftHandler;
+        _client.ModalSubmitted += ModalSubmittedHandler;
+        _client.MessageReceived += MessageReceivedHandler;
 
         //Connect to Discord
         TaskCompletionSource<bool> readyTcs = new TaskCompletionSource<bool>();
@@ -99,6 +102,7 @@ public class Program
         guild = _client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("guild_id")));
         logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("logchannel_id"))) as SocketTextChannel;
         welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
+        jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
     }
 
     public async Task RegisterCommands()
@@ -116,6 +120,11 @@ public class Program
         roadmapcmd.WithName("roadmap");
         roadmapcmd.WithDescription("Get the Roadmap");
 
+        //jobs cmd
+        var jobscmd = new SlashCommandBuilder();
+        jobscmd.WithName("jobs");
+        jobscmd.WithDescription("Post a job offer (For freelancers looking for work)");
+
         //build message/user context command
         //User Commands
         //var usercmd = new UserCommandBuilder();
@@ -131,6 +140,7 @@ public class Program
             //slash cmds
             debugcmd.Build(),
             roadmapcmd.Build(),
+            jobscmd.Build(),
 
             //context cmds
             //usercmd.Build(),
@@ -224,11 +234,97 @@ public class Program
             {
                 Label = "Roadmap 🚀",
                 Url = Environment.GetEnvironmentVariable("roadmap_link"),
-                //Emote = Emote.Parse("🚀"),
                 Style = ButtonStyle.Link,
             });
 
             await command.RespondAsync(embed: roadmap_embed, components: roadmap_button.Build(), ephemeral: true);
+        }
+
+        //handle jobs cmd
+        if(command.CommandName == "jobs")
+        {
+            /*if(command.Channel.Id != jobchannel.Id)
+            {
+                var wrongchannel_embed = new EmbedBuilder
+                {
+                    Title = "You are in the wrong Channel!",
+                    Description = $"For Job offers, switch the Channel to {jobchannel.Mention}",
+                    Color = Color.Red,
+                }
+                .Build();
+                await command.RespondAsync(embed: wrongchannel_embed, ephemeral: true);
+                return;
+            }*/
+
+            var joboffer_input = new ModalBuilder()
+            .WithTitle("Job Offer")
+            .WithCustomId("joboffer_modal")
+            .AddTextInput("What is your designation?", "designation_input", TextInputStyle.Short, required: true, placeholder:"e.g. Freelancer")
+            .AddTextInput("Which programming languages do you know?", "p_languages_input", TextInputStyle.Paragraph, required: true, placeholder:"e.g. Python, React, MySQL or C#")
+            .AddTextInput("How much experience do you already have?", "experience_input", TextInputStyle.Short, required: true, placeholder:"e.g. 4 Years")
+            .AddTextInput("Do you have a Website? (only if yes)", "website_input", TextInputStyle.Short, required: false, placeholder:"e.g. https://mycoolsite.com")
+            .AddTextInput("Would you like to add anything else?", "other_input", TextInputStyle.Paragraph, required: false);
+
+            await command.RespondWithModalAsync(joboffer_input.Build());
+
+            //continue in modal funktion
+        }
+    }
+
+    private async Task ModalSubmittedHandler(SocketModal modal)
+    {
+        if(modal.Data.CustomId == "joboffer_modal")
+        {
+            var job_embed = new EmbedBuilder
+            {
+                Description = @$"# {modal.Data.Components.First(x => x.CustomId == "designation_input").Value} looking for assignments!
+                Hi, I'm {modal.User.Mention} and I'm happy to offer you my help with your project!",
+                Color = Color.Blue,
+                Footer = new EmbedFooterBuilder().WithText($"Regards, your {modal.User.GlobalName}!").WithIconUrl(modal.User.GetAvatarUrl()),
+                //Timestamp = (DateTimeOffset.Now)
+            }
+            .AddField("Which languages do I know?", modal.Data.Components.First(x => x.CustomId == "p_languages_input").Value)
+            .AddField("How much experience do I have?", $"{modal.Data.Components.First(x => x.CustomId == "experience_input").Value}{(modal.Data.Components.First(x => x.CustomId == "other_input").Value == "" ? "" : $"\n\n**{modal.Data.Components.First(x => x.CustomId == "other_input").Value}**")}\n\nHave I got you interested? Then write me a DM here on Discord! I can't wait to hear from you!")
+            .Build();
+
+            if(modal.Data.Components.First(x => x.CustomId == "website_input").Value != "")
+            {
+                var website_button = new ComponentBuilder();
+                website_button.WithButton(new ButtonBuilder()
+                {
+                    Label = "Go to my Website! 🌐",
+                    Url = modal.Data.Components.First(x => x.CustomId == "website_input").Value,
+                    Style = ButtonStyle.Link,
+                });
+
+                await jobchannel.SendMessageAsync(embed: job_embed, components: website_button.Build());
+            }
+            else
+            {
+                await jobchannel.SendMessageAsync(embed: job_embed);
+            }
+
+            await modal.RespondAsync("done", ephemeral: true);
+        }
+    }
+
+    private async Task MessageReceivedHandler(SocketMessage message)
+    {
+        if(message.Channel.Id == jobchannel.Id)
+        {
+            await message.DeleteAsync();
+
+            //log
+            var log_embed = new EmbedBuilder
+            {
+                Author = new EmbedAuthorBuilder().WithName("Message deleted"),
+                Title = $"A message has been deleted in {jobchannel.Mention}.",
+                Description = $"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
+                Color = Color.Red,
+            }
+            .Build();
+
+            await logchannel.SendMessageAsync(embed: log_embed);
         }
     }
 

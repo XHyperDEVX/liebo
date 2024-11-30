@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("liebo")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b6fc7246fbcd164326cf0421c7fa22fab410a7f4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f365fa7ed3dded09d252bdddce72b03b11bf1245")]
 [assembly: System.Reflection.AssemblyProductAttribute("liebo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("liebo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
