@@ -111,6 +111,11 @@ public class Program
         debugcmd.WithDescription("Debug CMD for development and maintenance");
         debugcmd.AddOption("cmd", ApplicationCommandOptionType.String, "cmd", isRequired: true);
 
+        //roadmap cmd
+        var roadmapcmd = new SlashCommandBuilder();
+        roadmapcmd.WithName("roadmap");
+        roadmapcmd.WithDescription("Get the Roadmap");
+
         //build message/user context command
         //User Commands
         //var usercmd = new UserCommandBuilder();
@@ -125,6 +130,7 @@ public class Program
         {
             //slash cmds
             debugcmd.Build(),
+            roadmapcmd.Build(),
 
             //context cmds
             //usercmd.Build(),
@@ -201,6 +207,29 @@ public class Program
                 return;
             }
         }
+
+        //handle roadmap cmd
+        if(command.CommandName == "roadmap")
+        {
+            var roadmap_embed = new EmbedBuilder
+            {
+                Title = "What features are currently in development for LibreChat?",
+                Description = "Click on the button below to get to the current Roadmap!",
+                Color = Color.Blue,
+            }
+            .Build();
+
+            var roadmap_button = new ComponentBuilder();
+            roadmap_button.WithButton(new ButtonBuilder()
+            {
+                Label = "Roadmap 🚀",
+                Url = Environment.GetEnvironmentVariable("roadmap_link"),
+                //Emote = Emote.Parse("🚀"),
+                Style = ButtonStyle.Link,
+            });
+
+            await command.RespondAsync(embed: roadmap_embed, components: roadmap_button.Build(), ephemeral: true);
+        }
     }
 
     private async Task UserJoinedHandler(SocketGuildUser user)
@@ -241,7 +270,7 @@ public class Program
             Author = new EmbedAuthorBuilder().WithName("Goodbye..."),
             Title = $"A user has left the server. :pensive:",
             ThumbnailUrl = user.GetAvatarUrl(),
-            Description = $"{user.Mention} has left...\n-# We are now {guild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",  //<t:{TimeZoneInfo.ConvertTime(guilduser.JoinedAt.Value, germantime).ToUnixTimeSeconds()}:R>",
+            Description = $"{user.Mention} has left...\n-# We are now {guild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.DarkRed,
         }
         .Build();
