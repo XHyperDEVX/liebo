@@ -1,0 +1,10 @@
+#local env file
+*.env
+
+#folder
+obj/
+bin/
+
+#other
+liebo.sln
+.vscode
