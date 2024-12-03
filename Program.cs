@@ -66,14 +66,17 @@ public class Program
 
         //Connect to Discord
         TaskCompletionSource<bool> readyTcs = new TaskCompletionSource<bool>();
-        _client.Ready += () => //für warten bis ready
+        _client.Ready += () => //wait until "ready"
         {
             readyTcs.SetResult(true);
             return Task.CompletedTask;
         };
 
+        Console.WriteLine($"-> Login into Discord...");
         await _client.LoginAsync(TokenType.Bot, bot_token);
+        Thread.Sleep(500); //Discord API is sometimes sensitive, so to avoid errors
         await _client.StartAsync();
+        Console.WriteLine("-> Login successful!");
         await readyTcs.Task;
 
         //Set Variables
@@ -81,6 +84,9 @@ public class Program
 
         //Register Commands
         await RegisterCommands();
+
+        //set bot account status
+        await _client.SetCustomStatusAsync("answers your questions");
 
         //Start Healthcheck
         HealthCheck();
@@ -316,7 +322,7 @@ public class Program
 
     private async Task MessageReceivedHandler(SocketMessage message)
     {
-        if(message.Channel.Id == jobchannel.Id)
+        if(message.Channel.Id == jobchannel.Id && !message.Author.IsBot)
         {
             await message.DeleteAsync();
 
