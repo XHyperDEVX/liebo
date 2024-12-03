@@ -1,9 +1,13 @@
 ﻿namespace liebo;
 
+using System.ClientModel;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
 using Discord;
 using Discord.WebSocket;
+using OpenAI;
+using OpenAI.Chat;
 
 public class Program
 {
@@ -15,6 +19,7 @@ public class Program
     public static SocketTextChannel logchannel;
     public static SocketTextChannel welcomechannel;
     public static SocketTextChannel jobchannel;
+    public static SocketTextChannel aichannel;
     private static HttpListener healtcheck_host = new HttpListener();
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
@@ -103,6 +108,7 @@ public class Program
         logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("logchannel_id"))) as SocketTextChannel;
         welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
         jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
+        aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
     }
 
     public async Task RegisterCommands()
@@ -326,7 +332,133 @@ public class Program
 
             await logchannel.SendMessageAsync(embed: log_embed);
         }
+
+        //ai chat
+        if(message.Channel.Id == aichannel.Id && message.Content.Contains(_client.CurrentUser.Mention) && !message.Author.IsBot)
+        {
+            try{
+                await message.Channel.TriggerTypingAsync(); //typing indicator
+
+                List<ChatMessage> previous_messages = new List<ChatMessage>
+                {
+                    new SystemChatMessage(@"You are Liebo, a Discord Bot on the official Discord server of “LibreChat”. LibreChat is a free, open source AI chat platform. On LibreChat, all users can use all kinds of artificial intelligence with their own API keys.
+Your job is to help users with questions about LibreChat. You are only allowed to answer questions about LibreChat, not about any other topic.
+You will always answer in a friendly manner and be specific to the question asked.
+You cannot see message histories, you can only reply to the question that has just been asked.
+The official website of Librechat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
+Anyone can also download LibreChat and host it on their own system.
+You always answer with Markdown and if you don't know something, you refer the users to the LibreChat documentation: “https://www.librechat.ai/docs”.
+For EVERY question you get, use the “GetDocs” tool to get up-to-date information about LibreChat. Make sure you choose the right file! You never answer from your own knowledge, you always use the tools!
+You always adhere to these guidelines and never deviate from them!
+Note that you do not know everything about LibreChat and your tips may not always work. If necessary, point this out to the user."),
+                    new AssistantChatMessage("How can i help you with Librechat?"),
+                    new UserChatMessage(message.Content.Replace(_client.CurrentUser.Mention, "").Replace("\"", "\\\"").ReplaceLineEndings(" "))
+                };
+
+                OpenAIClientOptions settings = new()
+                {
+                    Endpoint = new Uri("https://api.groq.com/openai/v1"),
+                };
+                
+                ChatClient oa_client = new(model: "llama-3.2-90b-vision-preview", new ApiKeyCredential(Environment.GetEnvironmentVariable("groq_apikey")), options: settings);
+
+                ChatCompletionOptions options = new()
+                {
+                    Tools = { getDocs_tool },
+                    Temperature = 0.2f,
+                };
+
+                ChatCompletion chatCompletion = await oa_client.CompleteChatAsync(previous_messages, options);
+
+                //tool
+                bool requiresAction;
+
+                do
+                {
+                    requiresAction = false;
+                    chatCompletion = oa_client.CompleteChat(previous_messages, options);
+
+                    switch (chatCompletion.FinishReason)
+                    {
+                        case ChatFinishReason.Stop:
+                            {
+                                break;
+                            }
+
+                        case ChatFinishReason.ToolCalls:
+                            {
+                                //first, add the assistant message with tool calls to the conversation history.
+                                previous_messages.Add(new AssistantChatMessage(chatCompletion));
+
+                                //then, add a new tool message for each tool call that is resolved.
+                                foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
+                                {
+                                    switch (toolCall.FunctionName)
+                                    {
+                                        case nameof(GetDocs):
+                                            {
+                                                string toolResult = GetDocs(Regex.Match(toolCall.FunctionArguments.ToString(), @"(?<=""filename"":\s*\"")(.*?)(?=\"")").Value);
+                                                previous_messages.Add(new ToolChatMessage(toolCall.Id, toolResult.ToString()));
+                                                break;
+                                            }
+
+                                        default:
+                                            {
+                                                throw new NotImplementedException();
+                                            }
+                                    }
+                                }
+
+                                requiresAction = true;
+                                break;
+                            }
+
+                        default:
+                            throw new NotImplementedException(chatCompletion.FinishReason.ToString());
+                    }
+                } while (requiresAction);
+
+                //modify response
+                string response = chatCompletion.Content[0].Text;
+                response = response.Replace("Liebo", _client.CurrentUser.Mention);
+                response = response.Replace("),", ") ,").Replace(").", ") ."); //fix broken markdown
+
+                await message.Channel.SendMessageAsync($"{response}\n-# This text is AI generated. It may contain mistakes. (Output: {chatCompletion.Usage.OutputTokenCount} Token)", messageReference: new MessageReference(message.Id));
+            }
+            catch (Exception ex)
+            {
+                await logchannel.SendMessageAsync($"## AI Chat Error:\nError: ```{ex.Message}```");
+                await message.Channel.SendMessageAsync("### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*", messageReference: new MessageReference(message.Id));
+            }
+        }
     }
+
+    //AI Tools ---
+    private static readonly ChatTool getDocs_tool = ChatTool.CreateFunctionTool(
+        functionName: nameof(GetDocs),
+        functionDescription: "Retrieve information from the LibreChats documentation",
+        functionParameters: BinaryData.FromBytes("""
+        {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "enum": [ "about_librechat_yaml.txt", "anthropic_endpoint.txt", "assistants.txt", "bedrock_aws_endpoint.txt", "config_librechat_yaml.txt", "custom_endpoints.txt", "docker_installation.txt", "docker_setup.txt", "env_file.txt", "google_endpoint.txt", "huggingface.txt", "librechat_features_and_functions.txt", "meilisearch.txt", "npm_installation.txt", "ollama.txt", "openai_endpoint.txt", "rag_api.txt", "sst_tts_speech_to_text.txt", "token_usage.txt" ],
+                    "description": "The file name of the documentation to be retrieved"
+                }
+            },
+            "required": [ "filename" ]
+        }
+        """u8.ToArray())
+    );
+    
+    private static string GetDocs(string filename)
+    {
+        //get docs
+        HttpClient client = new HttpClient();
+        return client.GetStringAsync($"{Environment.GetEnvironmentVariable("docs_url")}/{filename}{Environment.GetEnvironmentVariable("docs_url_query")}").Result; //access to a selection of librechat docs, which are hosted on a dedicated server. for security reasons here as env
+    }
+    //AI Tools ---
 
     private async Task UserJoinedHandler(SocketGuildUser user)
     {
