@@ -8,6 +8,8 @@ using Discord;
 using Discord.WebSocket;
 using OpenAI;
 using OpenAI.Chat;
+using urldetector;
+using urldetector.detection;
 
 public class Program
 {
@@ -20,6 +22,7 @@ public class Program
     public static SocketTextChannel welcomechannel;
     public static SocketTextChannel jobchannel;
     public static SocketTextChannel aichannel;
+    public static SocketRole link_approved_role;
     private static HttpListener healtcheck_host = new HttpListener();
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
@@ -115,6 +118,8 @@ public class Program
         welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
         jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
         aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
+
+        link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
     }
 
     public async Task RegisterCommands()
@@ -332,11 +337,48 @@ public class Program
                 Author = new EmbedAuthorBuilder().WithName("Message deleted"),
                 Title = $"A message has been deleted in {jobchannel.Mention}.",
                 Description = $"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
-                Color = Color.Red,
+                Color = Color.Gold,
             }
             .Build();
 
             await logchannel.SendMessageAsync(embed: log_embed);
+        }
+
+        //link whitelist
+        //link check -> deactivated/inactive and not finished
+        if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id))
+        {
+            
+            UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
+            List<Url> found = parser.Detect();
+
+            List<string> allowedTlds = new List<string> { "ai", "com", "co", "net", "org", "io", "info", "xyz", "us", "de", "me", "tv", "dev", "pro", "edu" };
+
+            foreach(Url url in found)
+            {
+                if(found.Any(url => allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld))))
+                {
+                    List<string> liste = new WebClient().DownloadString($"{Environment.GetEnvironmentVariable("linkwhitelist_url")}").Split('\n').ToList();
+                    string formatted_log_msg = message.Content;
+                    
+                    if (!liste.Contains(url.GetHost().Replace("www.", "")))
+                    {
+                        await message.DeleteAsync();
+
+                        //log
+                        var log_embed = new EmbedBuilder
+                        {
+                            Author = new EmbedAuthorBuilder().WithName("Message deleted"),
+                            Title = $"A message has been deleted in {message.Channel}.",
+                            Description = $"Reason: Not allowed link found\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
+                            Color = Color.Red,
+                        }
+                        .Build();
+
+                        await logchannel.SendMessageAsync(embed: log_embed);
+                    }
+                }
+            }
         }
 
         //ai chat
@@ -433,8 +475,22 @@ Note that you do not know everything about LibreChat and your tips may not alway
             }
             catch (Exception ex)
             {
-                await logchannel.SendMessageAsync($"## AI Chat Error:\nError: ```{ex.Message}```");
-                await message.Channel.SendMessageAsync("### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*", messageReference: new MessageReference(message.Id));
+                //log
+                var log_embed = new EmbedBuilder
+                {
+                    Title = $"AI Chat Error:",
+                    Description = $"Error:\n```{ex.Message}```",
+                    Color = Color.Red,
+                }
+                .Build();
+                await logchannel.SendMessageAsync(embed: log_embed);
+
+                var error_response_embed = new EmbedBuilder
+                {
+                    Description = $"### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*",
+                }
+                .Build();
+                await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
             }
         }
     }
