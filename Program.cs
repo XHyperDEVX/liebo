@@ -450,7 +450,7 @@ You will always answer in a friendly manner and be specific to the question aske
 You cannot see message histories, you can only reply to the question that has just been asked.
 The official website of Librechat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
 Anyone can also download LibreChat and host it on their own system.
-You always answer with Markdown and if you don't know something, you refer the users to the LibreChat documentation: “https://www.librechat.ai/docs”.
+You always answer with Markdown and if you don't know something, you refer the users to the LibreChat documentation: “https://www.librechat.ai/docs”. 
 For EVERY question you get, use the “GetDocs” tool to get up-to-date information about LibreChat. Make sure you choose the right file! You never answer from your own knowledge, you always use the tools!
 You always adhere to these guidelines and never deviate from them!
 Note that you do not know everything about LibreChat and your tips may not always work. If necessary, point this out to the user."),
@@ -561,7 +561,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
             "properties": {
                 "filename": {
                     "type": "string",
-                    "enum": [ "about_librechat_yaml.txt", "anthropic_endpoint.txt", "assistants.txt", "bedrock_aws_endpoint.txt", "config_librechat_yaml.txt", "custom_endpoints.txt", "docker_installation.txt", "docker_setup.txt", "env_file.txt", "google_endpoint.txt", "huggingface.txt", "librechat_features_and_functions.txt", "meilisearch.txt", "npm_installation.txt", "ollama.txt", "openai_endpoint.txt", "rag_api.txt", "sst_tts_speech_to_text.txt", "token_usage.txt" ],
+                    "enum": [ "about_librechat_yaml.txt", "anthropic_endpoint.txt", "assistants.txt", "bedrock_aws_endpoint.txt", "code_interpreter.txt", "config_librechat_yaml.txt", "custom_endpoints.txt", "docker_installation.txt", "docker_setup.txt", "env_file.txt", "google_endpoint.txt", "huggingface.txt", "librechat_features_and_functions.txt", "meilisearch.txt", "npm_installation.txt", "ollama.txt", "openai_endpoint.txt", "rag_api.txt", "sst_tts_speech_to_text.txt", "token_usage.txt" ],
                     "description": "The file name of the documentation to be retrieved"
                 }
             },
