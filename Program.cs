@@ -142,6 +142,11 @@ public class Program
         jobscmd.WithName("jobs");
         jobscmd.WithDescription("Post a job offer (For freelancers looking for work)");
 
+        //contribute cmd
+        var contributecmd = new SlashCommandBuilder();
+        contributecmd.WithName("contribute");
+        contributecmd.WithDescription("Contribute to Librechat");
+
         //build message/user context command
         //User Commands
         //var usercmd = new UserCommandBuilder();
@@ -158,6 +163,7 @@ public class Program
             debugcmd.Build(),
             roadmapcmd.Build(),
             jobscmd.Build(),
+            contributecmd.Build(),
 
             //context cmds
             //usercmd.Build(),
@@ -212,7 +218,7 @@ public class Program
                 }
 
                 await command.FollowupAsync( 
-                    $"`Status:` active and operating\n" +
+                    $"`Status:` active and operating (v{version})\n" +
                     $"`Discord Connection State:` {_client.ConnectionState}\n" +
                     $"`Ping to Cloudflare (Connection Test):` {pingreply.Status} ({pingreply.RoundtripTime}ms)\n" +
                     $"`Time (UTC):` {DateTime.UtcNow.ToString("HH:mm:ss")}, {DateTime.UtcNow.ToString("dd.MM.yyyy")}\n"
@@ -286,6 +292,53 @@ public class Program
 
             //continue in modal funktion
         }
+
+        //handle contribute cmd
+        if(command.CommandName == "contribute")
+        {
+            var contribute_embed = new EmbedBuilder
+            {
+                Description = @"# Would you like to contribute to the development of Librechat?
+*Nice! We are happy about every PR!*
+### Are you familiar with TypeScript/Javascript? Great!
+Then you can help us develop Librechat further!
+You have an idea how Librechat could become even better? Perfect!
+Create a PR and add your feature, and soon it will be in Librechat!
+### You know your way around Nextra3 (and .mdx files)? Cool!
+Then you can help to keep our documentation up to date and can document the functionality of new features and write instructions!
+This will help new and old Librechat users to understand Librechat and make it more accessible!
+### Not familiar with TypeScript/Javascript/Nextra3 or even programming in general?
+No problem!
+You can also support LibreChat by translating Librechat into your native language and make Librechat available to many more people!
+
+**It doesn't matter how you participate in the development of Librechat. We are happy about every little idea! And with YOUR help, Librechat will continue to grow!**",
+                Color = Color.Blue,
+                Footer = new EmbedFooterBuilder().WithText("Click on the buttons below to find out more about how you can contribute!"),
+            }
+            .Build();
+
+            var componentBuilder = new ComponentBuilder()
+            .WithButton(new ButtonBuilder()
+            {
+                Label = "Development 🚀",
+                Url = Environment.GetEnvironmentVariable("contribute_dev_link"),
+                Style = ButtonStyle.Link,
+            })
+            .WithButton(new ButtonBuilder()
+            {
+                Label = "Documentation 📚",
+                Url = Environment.GetEnvironmentVariable("contribute_docs_link"),
+                Style = ButtonStyle.Link,
+            })
+            .WithButton(new ButtonBuilder()
+            {
+                Label = "Translation 🌍",
+                Url = Environment.GetEnvironmentVariable("contribute_translate_link"),
+                Style = ButtonStyle.Link,
+            });
+
+            await command.RespondAsync(embed: contribute_embed, components: componentBuilder.Build(), ephemeral: true);
+        }
     }
 
     private async Task ModalSubmittedHandler(SocketModal modal)
@@ -335,9 +388,10 @@ public class Program
             var log_embed = new EmbedBuilder
             {
                 Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                Title = $"A message has been deleted in {jobchannel.Mention}.",
+                Title = $"A message has been deleted in {jobchannel.Mention}",
                 Description = $"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
                 Color = Color.Gold,
+                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
             }
             .Build();
 
@@ -346,13 +400,13 @@ public class Program
 
         //link whitelist
         //link check -> deactivated/inactive and not finished
-        if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id))
+        if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) && !message.Author.IsBot)
         {
             
             UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
             List<Url> found = parser.Detect();
 
-            List<string> allowedTlds = new List<string> { "ai", "com", "co", "net", "org", "io", "info", "xyz", "us", "de", "me", "tv", "dev", "pro", "edu" };
+            List<string> allowedTlds = new List<string> { "ai", "com", "co", "net", "org", "io", "info", "xyz", "us", "de", "me", "tv", "dev", "pro", "edu", "be" };
 
             foreach(Url url in found)
             {
@@ -369,9 +423,10 @@ public class Program
                         var log_embed = new EmbedBuilder
                         {
                             Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                            Title = $"A message has been deleted in {message.Channel}.",
+                            Title = $"A message has been deleted in {(message.Channel as SocketTextChannel).Mention}",
                             Description = $"Reason: Not allowed link found\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
                             Color = Color.Red,
+                            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
                         }
                         .Build();
 
@@ -488,6 +543,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
                 var error_response_embed = new EmbedBuilder
                 {
                     Description = $"### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*",
+                    Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
                 }
                 .Build();
                 await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
