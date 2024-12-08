@@ -8,6 +8,10 @@ using Discord;
 using Discord.WebSocket;
 using OpenAI;
 using OpenAI.Chat;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot.SkiaSharp;
 using urldetector;
 using urldetector.detection;
 
@@ -22,6 +26,7 @@ public class Program
     public static SocketTextChannel welcomechannel;
     public static SocketTextChannel jobchannel;
     public static SocketTextChannel aichannel;
+    public static SocketTextChannel statschannel;
     public static SocketRole link_approved_role;
     private static HttpListener healtcheck_host = new HttpListener();
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
@@ -94,6 +99,12 @@ public class Program
         //Start Healthcheck
         HealthCheck();
 
+        //Start Userstatus logging
+        LogOnlineUsersAsync();
+
+        //Start Stats Channel
+        UpdateStatsChannel();
+
         Console.WriteLine($"Liebo started successfull.");
         await Task.Delay(-1);
     }
@@ -118,6 +129,7 @@ public class Program
         welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
         jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
         aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
+        statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("statschannel_id"))) as SocketTextChannel;
 
         link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
     }
@@ -201,6 +213,99 @@ public class Program
     }
 
     //Bot Functions
+    private async void LogOnlineUsersAsync()
+    {
+        while (true)
+        {
+            var now = DateTime.UtcNow;
+            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var delay = nextRun - now;
+
+            await Task.Delay(delay);
+
+            using (var writer = new StreamWriter("onlinehistory.csv", true))
+            {
+                var onlineCount = guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot);
+                await writer.WriteLineAsync($"{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()},{onlineCount}");
+            }
+
+            //delete entries that are older than 24 hours
+            var lines = await File.ReadAllLinesAsync("onlinehistory.csv");
+            var filteredLines = lines.Where(line =>
+            {
+                var timestamp = long.Parse(line.Split(',')[0]);
+                return DateTime.UtcNow.AddHours(-24) < DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
+            });
+            await File.WriteAllLinesAsync("onlinehistory.csv", filteredLines);
+        }
+    }
+
+    private async void UpdateStatsChannel()
+    {
+        while (true)
+        {
+            var now = DateTime.UtcNow;
+            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var delay = nextRun - now;
+
+            await Task.Delay(delay);
+
+            var messages = await statschannel.GetMessagesAsync().FlattenAsync();
+            var message = messages.Last(message => message.Author.IsBot);
+
+            var stats_embed = new EmbedBuilder
+            {
+                Description = $"## LibreChat Discord Statistics:",
+                ImageUrl = $"attachment://image.png",
+                Color = Color.DarkBlue,
+                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
+            }
+            .Build();
+
+            var socketmessage = message as IUserMessage;
+            
+            await socketmessage.ModifyAsync(msg =>
+            {
+                msg.Content = "";
+                msg.Embed = stats_embed;
+                msg.Attachments = new[] { new FileAttachment(GetOnlineUsersPng(), "image.png") };
+            });
+        }
+    }
+
+    public MemoryStream GetOnlineUsersPng()
+    {
+        var model = new PlotModel { Title = "Online Users", Background = OxyColors.White };
+        var lineSeries = new LineSeries { Title = "Online Users", Color = OxyColors.Green, StrokeThickness = 2 };
+
+        foreach (var line in File.ReadLines("onlinehistory.csv"))
+        {
+            var parts = line.Split(',');
+            if (long.TryParse(parts[0], out var unixTimestamp) && int.TryParse(parts[1], out var count))
+            {
+                lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime), count));
+            }
+        }
+
+        model.Series.Add(lineSeries);
+        model.Axes.Add(new DateTimeAxis { Title = "Time (UTC)", StringFormat = "dd.MM.yyyy\nHH:mm", Position = AxisPosition.Bottom });
+        model.Axes.Add(new LinearAxis { Title = "Online Users", Minimum = 0, Maximum = guild.MemberCount });
+
+        var stream = new MemoryStream();
+        try
+        {
+            new PngExporter { Width = 1000, Height = 400 }.Export(model, stream);
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error while exporting: {ex.Message}");
+            return null;
+        }
+
+        return stream;
+    }
+
     private async Task SlashCommandHandler(SocketSlashCommand command)
     {
         //handle debug cmd
@@ -237,6 +342,25 @@ public class Program
             {
                 await UserLeftHandler(guild, guild.GetUser(command.User.Id));
                 await command.FollowupAsync("done");
+                return;
+            }
+
+            if(cmd == "debug")
+            {
+                //temp command for testing (does nothing in prod.)
+                await command.FollowupAsync("done");
+                return;
+            }
+
+            if(cmd == "install statschannel")
+            {
+                var embed = new EmbedBuilder
+                {
+                    Description = $"installing..",
+                }
+                .Build();
+
+                await command.Channel.SendMessageAsync(embed: embed);
                 return;
             }
         }
