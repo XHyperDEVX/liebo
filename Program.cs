@@ -28,6 +28,7 @@ public class Program
     public static SocketTextChannel aichannel;
     public static SocketTextChannel statschannel;
     public static SocketRole link_approved_role;
+    public static SocketRole star_role;
     private static HttpListener healtcheck_host = new HttpListener();
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
@@ -132,6 +133,7 @@ public class Program
         statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("statschannel_id"))) as SocketTextChannel;
 
         link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
+        star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("star_roleid")));
     }
 
     public async Task RegisterCommands()
@@ -250,21 +252,21 @@ public class Program
 
             await Task.Delay(delay);
 
-            var messages = await statschannel.GetMessagesAsync().FlattenAsync();
-            var message = messages.Last(message => message.Author.IsBot);
-
             var stats_embed = new EmbedBuilder
             {
-                Description = $"## LibreChat Discord Statistics:",
+                Description = $"# LibreChat Discord Statistics:\n" +
+                $"### {guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}/{guild.Users.Count(user => !user.IsBot)} Users are currently online\n (*{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))} of them with a ⭐*)",
                 ImageUrl = $"attachment://image.png",
                 Color = Color.DarkBlue,
                 Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
             }
+            .AddField("User Online", $"**{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}**/{guild.Users.Count(user => !user.IsBot)} ({guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))})")
             .Build();
 
-            var socketmessage = message as IUserMessage;
+            var messages = await statschannel.GetMessagesAsync().FlattenAsync();
+            var message = messages.Last(message => message.Author.IsBot) as IUserMessage;
             
-            await socketmessage.ModifyAsync(msg =>
+            await message.ModifyAsync(msg =>
             {
                 msg.Content = "";
                 msg.Embed = stats_embed;
@@ -292,16 +294,8 @@ public class Program
         model.Axes.Add(new LinearAxis { Title = "Online Users", Minimum = 0, Maximum = guild.MemberCount });
 
         var stream = new MemoryStream();
-        try
-        {
-            new PngExporter { Width = 1000, Height = 400 }.Export(model, stream);
-            stream.Seek(0, SeekOrigin.Begin);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while exporting: {ex.Message}");
-            return null;
-        }
+        new PngExporter { Width = 1000, Height = 400 }.Export(model, stream);
+        stream.Seek(0, SeekOrigin.Begin);
 
         return stream;
     }
