@@ -216,7 +216,7 @@ public class Program
         while (true)
         {
             var now = DateTime.UtcNow;
-            var nextRun = now.AddMinutes(1 - (now.Minute % 1)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
             var delay = nextRun - now;
 
             await Task.Delay(delay);
@@ -243,7 +243,7 @@ public class Program
         while (true)
         {
             var now = DateTime.UtcNow;
-            var nextRun = now.AddMinutes(1 - (now.Minute % 1)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
             var delay = nextRun - now;
 
             await Task.Delay(delay);
