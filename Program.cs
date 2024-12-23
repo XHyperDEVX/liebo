@@ -8,10 +8,6 @@ using Discord;
 using Discord.WebSocket;
 using OpenAI;
 using OpenAI.Chat;
-using OxyPlot;
-using OxyPlot.Axes;
-using OxyPlot.Series;
-using OxyPlot.SkiaSharp;
 using urldetector;
 using urldetector.detection;
 
@@ -220,7 +216,7 @@ public class Program
         while (true)
         {
             var now = DateTime.UtcNow;
-            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var nextRun = now.AddMinutes(1 - (now.Minute % 1)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
             var delay = nextRun - now;
 
             await Task.Delay(delay);
@@ -247,7 +243,7 @@ public class Program
         while (true)
         {
             var now = DateTime.UtcNow;
-            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+            var nextRun = now.AddMinutes(1 - (now.Minute % 1)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
             var delay = nextRun - now;
 
             await Task.Delay(delay);
@@ -260,7 +256,6 @@ public class Program
                 Color = Color.DarkBlue,
                 Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
             }
-            .AddField("User Online", $"**{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}**/{guild.Users.Count(user => !user.IsBot)} ({guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))})")
             .Build();
 
             var messages = await statschannel.GetMessagesAsync().FlattenAsync();
@@ -277,27 +272,64 @@ public class Program
 
     public MemoryStream GetOnlineUsersPng()
     {
-        var model = new PlotModel { Title = "Online Users", Background = OxyColors.White };
-        var lineSeries = new LineSeries { Title = "Online Users", Color = OxyColors.Green, StrokeThickness = 2 };
+        ScottPlot.Plot myPlot = new();
 
-        foreach (var line in File.ReadLines("onlinehistory.csv"))
+        var lines = File.ReadAllLines("onlinehistory.csv");
+
+        // create sample data
+        var dataX = new DateTime[lines.Length];
+        var dataY = new double[lines.Length];
+
+        for (int i = 0; i < lines.Length; i++)
         {
-            var parts = line.Split(',');
-            if (long.TryParse(parts[0], out var unixTimestamp) && int.TryParse(parts[1], out var count))
-            {
-                lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime), count));
-            }
+            var parts = lines[i].Split(',');
+            dataX[i] = DateTimeOffset.FromUnixTimeSeconds(long.Parse(parts[0])).DateTime;
+            dataY[i] = double.Parse(parts[1]);
         }
 
-        model.Series.Add(lineSeries);
-        model.Axes.Add(new DateTimeAxis { Title = "Time (UTC)", StringFormat = "dd.MM.yyyy\nHH:mm", Position = AxisPosition.Bottom });
-        model.Axes.Add(new LinearAxis { Title = "Online Users", Minimum = 0, Maximum = guild.MemberCount });
+        // add a scatter plot to the plot
+        var sig = myPlot.Add.Scatter(dataX, dataY);
+        // add a green data line
+        sig.Color = new("#3ae132");
 
-        var stream = new MemoryStream();
-        new PngExporter { Width = 1000, Height = 400 }.Export(model, stream);
-        stream.Seek(0, SeekOrigin.Begin);
+        myPlot.Axes.SetLimitsY(0, guild.MemberCount);
 
-        return stream;
+        var axis = myPlot.Axes.DateTimeTicksBottom();
+
+        static string CustomFormatter(DateTime dt)
+        {
+            bool isMidnight = dt is { Hour: 0, Minute: 0, Second: 0 };
+            return isMidnight
+                ? DateOnly.FromDateTime(dt).ToString()
+                : TimeOnly.FromDateTime(dt).ToString();
+        }
+
+        var tickGen = (ScottPlot.TickGenerators.DateTimeAutomatic)axis.TickGenerator;
+        tickGen.LabelFormatter = CustomFormatter;
+
+        ScottPlot.TickGenerators.NumericAutomatic tickGenY = new();
+        tickGenY.TickDensity = 0.1;
+        tickGenY.TargetTickCount = 1;
+        myPlot.Axes.Left.TickGenerator = tickGenY;
+
+        myPlot.Title("User Online History", 30);
+        myPlot.XLabel("Time (UTC)");
+        myPlot.YLabel("User Online");
+
+        myPlot.FigureBackground.Color = new("#1c1c1e");
+
+        myPlot.Grid.XAxisStyle.MinorLineStyle.Width = 4;
+        myPlot.Grid.YAxisStyle.MinorLineStyle.Width = 1;
+
+        myPlot.Grid.XAxisStyle.MajorLineStyle.Color = ScottPlot.Colors.White.WithAlpha(15);
+        myPlot.Grid.YAxisStyle.MajorLineStyle.Color = ScottPlot.Colors.White.WithAlpha(15);
+        myPlot.Grid.XAxisStyle.MinorLineStyle.Color = ScottPlot.Colors.White.WithAlpha(5);
+        myPlot.Grid.YAxisStyle.MinorLineStyle.Color = ScottPlot.Colors.White.WithAlpha(5);
+
+        myPlot.Axes.Color(new("#888888"));
+
+        Byte[] bytes = myPlot.GetImageBytes(1000, 400, ScottPlot.ImageFormat.Png);
+        return new MemoryStream(bytes);
     }
 
     private async Task SlashCommandHandler(SocketSlashCommand command)
