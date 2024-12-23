@@ -23,6 +23,7 @@ public class Program
     public static SocketTextChannel jobchannel;
     public static SocketTextChannel aichannel;
     public static SocketTextChannel statschannel;
+    public static SocketTextChannel lieboupdatechannel;
     public static SocketRole link_approved_role;
     public static SocketRole star_role;
     private static HttpListener healtcheck_host = new HttpListener();
@@ -127,6 +128,7 @@ public class Program
         jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
         aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
         statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("statschannel_id"))) as SocketTextChannel;
+        lieboupdatechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("lieboupdatechannel_id"))) as SocketTextChannel;
 
         link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
         star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("star_roleid")));
@@ -157,6 +159,11 @@ public class Program
         contributecmd.WithName("contribute");
         contributecmd.WithDescription("Contribute to Librechat");
 
+        //contribute cmd
+        var linkcmd = new SlashCommandBuilder();
+        linkcmd.WithName("link");
+        linkcmd.WithDescription("Why are no links allowed?");
+
         //build message/user context command
         //User Commands
         //var usercmd = new UserCommandBuilder();
@@ -174,6 +181,7 @@ public class Program
             roadmapcmd.Build(),
             jobscmd.Build(),
             contributecmd.Build(),
+            linkcmd.Build(),
 
             //context cmds
             //usercmd.Build(),
@@ -488,6 +496,38 @@ You can also support LibreChat by translating Librechat into your native languag
             });
 
             await command.RespondAsync(embed: contribute_embed, components: componentBuilder.Build(), ephemeral: true);
+        }
+
+        //handle link cmd
+        if(command.CommandName == "link")
+        {
+            var addlink_embed = new EmbedBuilder
+            {
+                Description = $@"# Why is my message being deleted?
+**Your message has probably been deleted as we have a link whitelist for security reasons.**
+This means that all links (or domains) that are not on our whitelist will be deleted.
+We use this system to offer all users the best possible protection, especially as there is a lot of fraud in the area of “AI” and “artificial intelligence”.
+*But like no system, our system is not perfect.*
+Our whitelist does not include every website that is useful/helpful.
+And for that we need your help!
+## Do you have a domain that you think is useful and would like to have it whitelisted?
+Great! The button below will take you to a form where you can easily add the domain to the whitelist.
+Each domain will be manually added to the whitelist after a check if it is helpful in any way.
+Each newly added domain is noted in {lieboupdatechannel.Mention}.
+*Thank you for your contribution!*",
+                Color = Color.Blue,
+            }
+            .Build();
+
+            var componentBuilder = new ComponentBuilder()
+            .WithButton(new ButtonBuilder()
+            {
+                Label = "Add domain ➕",
+                Url = Environment.GetEnvironmentVariable("addlinkwhitelist_link"),
+                Style = ButtonStyle.Link,
+            });
+
+            await command.RespondAsync(embed: addlink_embed, components: componentBuilder.Build(), ephemeral: true);
         }
     }
 
