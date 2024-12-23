@@ -14,7 +14,7 @@ COPY --from=build /app/publish .
 
 COPY version.txt /app/version.txt
 
-RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install -y curl libfreetype6 libfontconfig1 fontconfig
 RUN apt clean
 RUN apt autoremove -y
 RUN rm -rf /etc/apt/sources.list
