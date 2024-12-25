@@ -8,8 +8,10 @@ using Discord;
 using Discord.WebSocket;
 using OpenAI;
 using OpenAI.Chat;
+using ScottPlot;
 using urldetector;
 using urldetector.detection;
+using Color = Discord.Color;
 
 public class Program
 {
@@ -246,7 +248,7 @@ public class Program
         }
     }
 
-    private async void UpdateStatsChannel()
+    private async void UpdateStatsChannel_Timer()
     {
         while (true)
         {
@@ -256,26 +258,30 @@ public class Program
 
             await Task.Delay(delay);
 
-            var stats_embed = new EmbedBuilder
-            {
-                Description = $"# LibreChat Discord Statistics:\n" +
-                $"### {guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}/{guild.Users.Count(user => !user.IsBot)} Users are currently online\n (*{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))} of them with a ⭐*)",
-                ImageUrl = $"attachment://image.png",
-                Color = Color.DarkBlue,
-                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-            }
-            .Build();
-
-            var messages = await statschannel.GetMessagesAsync().FlattenAsync();
-            var message = messages.Last(message => message.Author.IsBot) as IUserMessage;
-            
-            await message.ModifyAsync(msg =>
-            {
-                msg.Content = "";
-                msg.Embed = stats_embed;
-                msg.Attachments = new[] { new FileAttachment(GetOnlineUsersPng(), "image.png") };
-            });
+            await UpdateStatsChannel();
         }
+    }
+    private async Task UpdateStatsChannel()
+    {
+        var stats_embed = new EmbedBuilder
+        {
+            Description = $"# LibreChat Discord Statistics:\n" +
+            $"### {guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}/{guild.Users.Count(user => !user.IsBot)} Users are currently online\n (*{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))} of them with a ⭐*)",
+            ImageUrl = $"attachment://image.png",
+            Color = Color.DarkBlue,
+            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
+        }
+        .Build();
+
+        var messages = await statschannel.GetMessagesAsync().FlattenAsync();
+        var message = messages.Last(message => message.Author.IsBot) as IUserMessage;
+        
+        await message.ModifyAsync(msg =>
+        {
+            msg.Content = "";
+            msg.Embed = stats_embed;
+            msg.Attachments = new[] { new FileAttachment(GetOnlineUsersPng(), "image.png") };
+        });
     }
 
     public MemoryStream GetOnlineUsersPng()
@@ -299,6 +305,7 @@ public class Program
         var sig = myPlot.Add.Scatter(dataX, dataY);
         // add a green data line
         sig.Color = new("#3ae132");
+        sig.MarkerStyle = MarkerStyle.None;
 
         myPlot.Axes.SetLimitsY(0, guild.MemberCount);
 
@@ -308,8 +315,8 @@ public class Program
         {
             bool isMidnight = dt is { Hour: 0, Minute: 0, Second: 0 };
             return isMidnight
-                ? DateOnly.FromDateTime(dt).ToString()
-                : TimeOnly.FromDateTime(dt).ToString();
+                ? DateOnly.FromDateTime(dt).ToString("dd.MM.yyyy")
+                : TimeOnly.FromDateTime(dt).ToString("HH:mm");
         }
 
         var tickGen = (ScottPlot.TickGenerators.DateTimeAutomatic)axis.TickGenerator;
@@ -382,6 +389,13 @@ public class Program
             if(cmd == "debug")
             {
                 //temp command for testing (does nothing in prod.)
+                await command.FollowupAsync("done");
+                return;
+            }
+
+            if(cmd == "trigger statschannel")
+            {
+                await UpdateStatsChannel();
                 await command.FollowupAsync("done");
                 return;
             }
