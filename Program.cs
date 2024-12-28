@@ -103,7 +103,7 @@ public class Program
         LogOnlineUsersAsync();
 
         //Start Stats Channel
-        UpdateStatsChannel();
+        UpdateStatsChannel_Timer();
 
         Console.WriteLine($"Liebo started successfull.");
         await Task.Delay(-1);
@@ -221,33 +221,6 @@ public class Program
     }
 
     //Bot Functions
-    private async void LogOnlineUsersAsync()
-    {
-        while (true)
-        {
-            var now = DateTime.UtcNow;
-            var nextRun = now.AddMinutes(5 - (now.Minute % 5)).AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
-            var delay = nextRun - now;
-
-            await Task.Delay(delay);
-
-            using (var writer = new StreamWriter("onlinehistory.csv", true))
-            {
-                var onlineCount = guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot);
-                await writer.WriteLineAsync($"{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()},{onlineCount}");
-            }
-
-            //delete entries that are older than 24 hours
-            var lines = await File.ReadAllLinesAsync("onlinehistory.csv");
-            var filteredLines = lines.Where(line =>
-            {
-                var timestamp = long.Parse(line.Split(',')[0]);
-                return DateTime.UtcNow.AddHours(-24) < DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
-            });
-            await File.WriteAllLinesAsync("onlinehistory.csv", filteredLines);
-        }
-    }
-
     private async void UpdateStatsChannel_Timer()
     {
         while (true)
@@ -258,8 +231,26 @@ public class Program
 
             await Task.Delay(delay);
 
+            await LogOnlineUsersAsync();
             await UpdateStatsChannel();
         }
+    }
+    private async Task LogOnlineUsersAsync()
+    {
+        using (var writer = new StreamWriter("onlinehistory.csv", true))
+        {
+            var onlineCount = guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot);
+            await writer.WriteLineAsync($"{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()},{onlineCount}");
+        }
+
+        //delete entries that are older than 24 hours
+        var lines = await File.ReadAllLinesAsync("onlinehistory.csv");
+        var filteredLines = lines.Where(line =>
+        {
+            var timestamp = long.Parse(line.Split(',')[0]);
+            return DateTime.UtcNow.AddHours(-24) < DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
+        });
+        await File.WriteAllLinesAsync("onlinehistory.csv", filteredLines);
     }
     private async Task UpdateStatsChannel()
     {
