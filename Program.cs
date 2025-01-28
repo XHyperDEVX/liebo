@@ -596,8 +596,7 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
         //link whitelist
         //link check -> deactivated/inactive and not finished
         if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) && !message.Author.IsBot)
-        {
-            
+        {  
             UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
             List<Url> found = parser.Detect();
 
@@ -607,7 +606,17 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
             {
                 if(found.Any(url => allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld))))
                 {
-                    List<string> liste = new WebClient().DownloadString($"{Environment.GetEnvironmentVariable("linkwhitelist_url")}").Split('\n').ToList();
+                    string filePath = "link_whitelist.txt";
+                    string whitelist_url = Environment.GetEnvironmentVariable("linkwhitelist_url");
+
+                    using var httpClient = new HttpClient();
+                    if (!File.Exists(filePath))
+                    {
+                        var content = await httpClient.GetStringAsync(whitelist_url);
+                        await File.WriteAllTextAsync(filePath, content);
+                    }
+
+                    List<string> liste = File.ReadAllLines(filePath).ToList();
                     string formatted_log_msg = message.Content;
                     
                     if (!liste.Contains(url.GetHost().Replace("www.", "")))
