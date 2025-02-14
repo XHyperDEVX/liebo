@@ -1,0 +1,239 @@
+# Speech to Text (STT) and Text to Speech (TTS)
+
+<Callout type="info" title="Upcoming STT/TTS Enhancements" collapsible>
+The Google Cloud STT/TTS and Deepgram services are being planned for future integration.
+</Callout>
+
+## Speech Introduction
+
+The Speech Configuration includes settings for both Speech-to-Text (STT) and Text-to-Speech (TTS) under a unified `speech:` section. Additionally, there is a new `speechTab` menu for user-specific settings
+
+## Speech Tab (optional)
+
+The `speechTab` menu provides customizable options for conversation and advanced modes, as well as detailed settings for STT and TTS. This will set the default settings for users
+
+example:
+
+```yaml
+speech:
+  speechTab:
+    conversationMode: true
+    advancedMode: false
+    speechToText:
+      engineSTT: "external"
+      languageSTT: "English (US)"
+      autoTranscribeAudio: true
+      decibelValue: -45
+      autoSendText: 0
+    textToSpeech:
+      engineTTS: "external"
+      voice: "alloy"
+      languageTTS: "en"
+      automaticPlayback: true
+      playbackRate: 1.0
+      cacheTTS: true
+```
+
+## STT (Speech-to-Text)
+
+The Speech-to-Text (STT) feature converts spoken words into written text. To enable STT, click on the STT button (near the send button) or use the key combination ++Ctrl+Alt+L++ to start the transcription.
+
+### Available STT Services
+
+- **Local STT**
+  - Browser-based
+  - Whisper (tested on LocalAI)
+- **Cloud STT**
+  - OpenAI Whisper
+  - Azure Whisper
+  - Other OpenAI-compatible STT services
+
+### Configuring Local STT
+
+- #### Browser-based
+  No setup required. Ensure the "Speech To Text" switch in the speech settings tab is enabled and "Browser" is selected in the engine dropdown.
+
+- #### Whisper Local
+  Requires a local Whisper instance.
+
+```yaml
+speech:
+  stt:
+    openai:
+      url: 'http://host.docker.internal:8080/v1/audio/transcriptions'
+      model: 'whisper'
+```
+
+### Configuring Cloud STT
+
+- #### OpenAI Whisper
+
+```yaml
+speech:
+  stt:
+    openai:
+      apiKey: '${STT_API_KEY}'
+      model: 'whisper-1'
+```
+
+- #### Azure Whisper
+
+```yaml
+speech:
+  stt:
+    azureOpenAI:
+      instanceName: 'instanceName'
+      apiKey: '${STT_API_KEY}'
+      deploymentName: 'deploymentName'
+      apiVersion: 'apiVersion'
+```
+
+- #### OpenAI compatible
+
+Refer to the OpenAI Whisper section, adjusting the `url` and `model` as needed.
+
+example
+  
+```yaml
+speech:
+  stt:
+    openai:
+      url: 'http://host.docker.internal:8080/v1/audio/transcriptions'
+      model: 'whisper'
+  ```
+
+
+## TTS (Text-to-Speech)
+
+The Text-to-Speech (TTS) feature converts written text into spoken words. Various TTS services are available:
+
+### Available TTS Services
+
+- **Local TTS**
+  - Browser-based
+  - Piper (tested on LocalAI)
+  - Coqui (tested on LocalAI)
+- **Cloud TTS**
+  - OpenAI TTS
+  - Azure OpenAI
+  - ElevenLabs
+  - Other OpenAI/ElevenLabs-compatible TTS services
+
+### Configuring Local TTS
+
+- #### Browser-based
+
+No setup required. Ensure the "Text To Speech" switcg in the speech settings tab is enabled and "Browser" is selected in the engine dropdown.
+
+- #### Piper
+
+Requires a local Piper instance.
+
+```yaml
+speech:
+  tts:
+    localai:
+      url: "http://host.docker.internal:8080/tts"
+      apiKey: "EMPTY"
+      voices: [
+        "en-us-amy-low.onnx",
+        "en-us-danny-low.onnx",
+        "en-us-libritts-high.onnx",
+        "en-us-ryan-high.onnx",
+      ]
+      backend: "piper"
+```
+
+- #### Coqui
+
+Requires a local Coqui instance.
+
+```yaml
+speech:
+  tts:
+    localai:
+      url: 'http://localhost:8080/v1/audio/synthesize'
+      voices: ['tts_models/en/ljspeech/glow-tts', 'tts_models/en/ljspeech/tacotron2', 'tts_models/en/ljspeech/waveglow']
+      backend: 'coqui'
+```
+
+### Configuring Cloud TTS
+
+- #### OpenAI TTS
+
+```yaml
+speech:
+  tts:
+    openai:
+      apiKey: '${TTS_API_KEY}'
+      model: 'tts-1'
+      voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+```
+
+- #### Azure OpenAI
+
+```yaml
+speech:
+  tts:
+    azureOpenAI:
+      instanceName: ''
+      apiKey: '${TTS_API_KEY}'
+      deploymentName: ''
+      apiVersion: ''
+      model: 'tts-1'
+      voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+```
+
+- #### ElevenLabs
+
+```yaml
+speech:
+  tts:
+    elevenlabs:
+      apiKey: '${TTS_API_KEY}'
+      model: 'eleven_multilingual_v2'
+      voices: ['202898wioas09d2', 'addwqr324tesfsf', '3asdasr3qrq44w', 'adsadsa']
+```
+
+Additional ElevenLabs-specific parameters can be added as follows:
+
+```yaml
+      voice_settings:
+        similarity_boost: '' # number
+        stability: '' # number
+        style: '' # number
+        use_speaker_boost: # boolean
+      pronunciation_dictionary_locators: [''] # list of strings (array)
+```
+
+- #### OpenAI compatible
+
+Refer to the OpenAI TTS section, adjusting the `url` variable as needed
+
+example:
+
+```yaml
+speech:
+  tts:
+    openai:
+      url: 'http://host.docker.internal:8080/v1/audio/synthesize'
+      apiKey: '${TTS_API_KEY}'
+      model: 'tts-1'
+      voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+```
+
+- #### ElevenLabs compatible
+
+Refer to the ElevenLabs section, adjusting the `url` variable as needed
+
+example:
+
+```yaml
+speech:
+  tts:
+    elevenlabs:
+      url: 'http://host.docker.internal:8080/v1/audio/synthesize'
+      apiKey: '${TTS_API_KEY}'
+      model: 'eleven_multilingual_v2'
+      voices: ['202898wioas09d2', 'addwqr324tesfsf', '3asdasr3qrq44w', 'adsadsa']
+```

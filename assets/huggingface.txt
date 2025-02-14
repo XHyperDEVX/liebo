@@ -1,0 +1,29 @@
+#### Custom Configuration - Hugging Face
+
+**Use RAG with Hugging Face Embedding**
+
+1. Add the following to your `.env` file:
+
+    ```sh
+    RAG_API_URL=http://host.docker.internal:8000
+    EMBEDDINGS_PROVIDER=huggingface
+    HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxx
+    ```
+
+2. Update your `docker-compose.override.yml` file with:
+
+    ```yaml
+    version: '3.4'
+
+    services:
+      rag_api:
+        image: ghcr.io/danny-avila/librechat-rag-api-dev:latest
+    ```
+
+3. Run the command to start the Docker containers:
+
+    ```sh
+    docker compose up -d
+    ```
+
+That's it!

@@ -606,15 +606,7 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
             {
                 if(found.Any(url => allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld))))
                 {
-                    string filePath = "link_whitelist.txt";
-                    string whitelist_url = Environment.GetEnvironmentVariable("linkwhitelist_url");
-
-                    using var httpClient = new HttpClient();
-                    if (!File.Exists(filePath))
-                    {
-                        var content = await httpClient.GetStringAsync(whitelist_url);
-                        await File.WriteAllTextAsync(filePath, content);
-                    }
+                    string filePath = "assets/link_whitelist.txt";
 
                     List<string> liste = File.ReadAllLines(filePath).ToList();
                     string formatted_log_msg = message.Content;
@@ -777,8 +769,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
     private static string GetDocs(string filename)
     {
         //get docs
-        HttpClient client = new HttpClient();
-        return client.GetStringAsync($"{Environment.GetEnvironmentVariable("docs_url")}/{filename}{Environment.GetEnvironmentVariable("docs_url_query")}").Result; //access to a selection of librechat docs, which are hosted on a dedicated server. for security reasons here as env
+        return File.ReadAllText($"assets/{filename}");
     }
     //AI Tools ---
 

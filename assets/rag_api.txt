@@ -1,0 +1,43 @@
+# RAG API Configuration
+
+**For further details about RAG, refer to the user guide provided here: [RAG API Presentation](/docs/user_guides/rag_api)**
+
+**Currently, this feature is available to all Custom Endpoints, OpenAI, Azure OpenAi, Anthropic, and Google.**
+
+OpenAI Assistants have their own implementation of RAG through the "Retrieval" capability. Learn more about it [here.](https://platform.openai.com/docs/assistants/tools/knowledge-retrieval) 
+
+It will still be useful to implement usage of the RAG API with the Assistants API since OpenAI charges for both file storage, and use of "Retrieval," and will be introduced in a future update.
+
+Plugins support is not enabled as the whole "plugin/tool" framework will get a complete rework soon, making tools available to most endpoints (ETA Summer 2024).
+
+**Still confused about RAG?** [Read the RAG API Presentation](/docs/user_guides/rag_api#what-is-rag) explaining the general concept in more detail with a link to a helpful video.
+
+## Setup
+
+To set up the RAG API with LibreChat, follow these steps:
+
+### Docker Setup - Quick Start
+
+#### Default Configuration
+
+**Use RAG with OpenAI Embedding (default)**
+
+1. Add the following to your `.env` file:
+
+    ```sh
+    RAG_API_URL=http://host.docker.internal:8000
+    ```
+
+2. If your OpenAI API key is set to "user_provided," also add this to your `.env` file to provide an OpenAI API key:
+    - Note: You can ignore this step if you are already providing the OpenAI API key in the .env file
+    ```sh
+    RAG_OPENAI_API_KEY=sk-your-openai-api-key-example
+    ```
+
+3. Run the command to start the Docker containers:
+
+    ```sh
+    docker compose up -d
+    ```
+
+That's it!
