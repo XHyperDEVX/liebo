@@ -13,6 +13,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 COPY version.txt /app/version.txt
+COPY assets /app/assets
 
 RUN apt-get update && apt-get install -y curl libfreetype6 libfontconfig1 fontconfig
 RUN apt clean
