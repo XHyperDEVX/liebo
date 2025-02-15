@@ -3,6 +3,7 @@
 using System.ClientModel;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using Discord;
 using Discord.WebSocket;
@@ -874,17 +875,20 @@ Note that you do not know everything about LibreChat and your tips may not alway
     private async Task UserJoinedHandler(SocketGuildUser user)
     {
         //welcome message
+        string default_pf = Path.Combine(Environment.CurrentDirectory, "assets", "default_pf.png");
         var welcome_embed = new EmbedBuilder
         {
             Author = new EmbedAuthorBuilder().WithName("Welcome!"),
             Title = "A new user has joined! :heart_eyes:",
-            ThumbnailUrl = user.GetAvatarUrl(),
+            ThumbnailUrl = user.GetAvatarUrl() ?? "attachment://default_pf.png",
             Description = $"Welcome on {guild.Name}, {user.Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.Green,
         }
         .Build();
 
-        await welcomechannel.SendMessageAsync(embed: welcome_embed);
+        await (user.GetAvatarUrl() != null 
+        ? welcomechannel.SendMessageAsync(embed: welcome_embed) 
+        : welcomechannel.SendFileAsync(default_pf, embed: welcome_embed));
 
         //dm message
         var welcome_user_embed = new EmbedBuilder
