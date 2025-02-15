@@ -68,6 +68,7 @@ public class Program
 
         //Subscribe to Events
         _client.SlashCommandExecuted += SlashCommandHandler;
+        _client.ButtonExecuted += ButtonCommandHandler;
         _client.UserJoined += UserJoinedHandler;
         _client.UserLeft += UserLeftHandler;
         _client.ModalSubmitted += ModalSubmittedHandler;
@@ -541,9 +542,9 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
             var componentBuilder = new ComponentBuilder()
             .WithButton(new ButtonBuilder()
             {
-                Label = "Add domain ➕",
-                Url = Environment.GetEnvironmentVariable("addlinkwhitelist_link"),
-                Style = ButtonStyle.Link,
+                Label = "Request a Domain ➕",
+                CustomId = "requesturl_btn",
+                Style = ButtonStyle.Secondary,
             });
 
             await command.RespondAsync(embed: addlink_embed, components: componentBuilder.Build(), ephemeral: true);
@@ -584,6 +585,45 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
             }
 
             await modal.RespondAsync("done", ephemeral: true);
+        }
+
+        if(modal.Data.CustomId == "requesturl_modal")
+        {
+            var success_embed = new EmbedBuilder
+            {
+                Description = $@"# Thank you!
+Your request has been saved and if the URL is useful, it will be added soon!
+**Thank you for your contribution!**",
+                Color = Color.Blue,
+            }
+            .Build();
+            await modal.RespondAsync(embed: success_embed, ephemeral: true);
+
+            var log_embed = new EmbedBuilder
+            {
+                Author = new EmbedAuthorBuilder().WithName("URL Request"),
+                Description = $"## {modal.User.Mention} has requested a URL",
+                Color = Color.Blue,
+                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
+            }
+            .AddField("Requested URL:", $"```{modal.Data.Components.First(x => x.CustomId == "url_input").Value}```")
+            .AddField("Reason:", $"```{modal.Data.Components.First(x => x.CustomId == "reason_input").Value}```")
+            .Build();
+            await logchannel.SendMessageAsync("<@593467840821198890>", embed: log_embed); //ping for information
+        }
+    }
+
+    private async Task ButtonCommandHandler(SocketMessageComponent button)
+    {
+        if(button.Data.CustomId == "requesturl_btn")
+        {
+            var requesturl_modal = new ModalBuilder()
+            .WithTitle("Request a URL")
+            .WithCustomId("requesturl_modal")
+            .AddTextInput("Which URL would you add to the whitelist?", "url_input", TextInputStyle.Short, required: true, placeholder:"https://librechat.ai", minLength: 11)
+            .AddTextInput("Why do you think the domain is useful?", "reason_input", TextInputStyle.Paragraph, required: true, placeholder:"The site provides news about Ai, tutorials for Ai, the site is a new AI provider, ...", minLength: 30);
+
+            await button.RespondWithModalAsync(requesturl_modal.Build());
         }
     }
 
