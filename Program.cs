@@ -17,32 +17,35 @@ using Color = Discord.Color;
 
 public class Program
 {
-    //Variablen
+    // Variables
     private static DiscordSocketClient _client;
-    public static string version;
-    public static string bot_token;
-    public static SocketGuild guild;
-    public static SocketTextChannel logchannel;
-    public static SocketTextChannel welcomechannel;
-    public static SocketTextChannel jobchannel;
-    public static SocketTextChannel aichannel;
-    public static SocketTextChannel statschannel;
-    public static SocketTextChannel lieboupdatechannel;
-    public static SocketRole link_approved_role;
-    public static SocketRole star_role;
-    private static HttpListener healtcheck_host = new HttpListener();
+    private static string version;
+    private static string bot_token;
+    private static SocketGuild guild;
+    private static SocketTextChannel logchannel;
+    private static SocketTextChannel welcomechannel;
+    private static SocketTextChannel jobchannel;
+    private static SocketTextChannel aichannel;
+    private static SocketTextChannel statschannel;
+    private static SocketTextChannel lieboupdatechannel;
+    private static SocketRole link_approved_role;
+    private static SocketRole star_role;
+    private static HttpListener healthcheck_host = new HttpListener();
+    
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
-    public async Task Startup()
+    private async Task Startup()
     {
+        // Load environment variables from .env file
         DotNetEnv.Env.Load();
-        bot_token = Environment.GetEnvironmentVariable("bot_token");
-        //Set Version
+        bot_token = Environment.GetEnvironmentVariable("BOT_TOKEN");
+        
+        // Set Version
         await SetVersion();
 
-        //Startup
+        // Startup logging
         Console.WriteLine("\n");
-        string ascii_logo = @"
+        string asciiLogo = @"
 +------------------------------------------------------------+
 |      :::        ::::::::::: :::::::::: :::::::::   ::::::::|
 |     :+:            :+:     :+:        :+:    :+: :+:    :+:|
@@ -53,21 +56,22 @@ public class Program
 |########## ########### ########## #########   ########      |
 +------------------------------------------------------------+
         ";
-        Console.WriteLine(ascii_logo); //made with https://www.asciiart.eu/text-to-ascii-art
+        Console.WriteLine(asciiLogo); // made with https://www.asciiart.eu/text-to-ascii-art
         Console.WriteLine($"Liebo (v{version}) is starting...");
-        //Set Client
+
+        // Set Client configuration
         var config = new DiscordSocketConfig()
         {
             GatewayIntents = GatewayIntents.All,
             LogGatewayIntentWarnings = false,
             AlwaysDownloadUsers = true,
             ResponseInternalTimeCheck = false,
-            MessageCacheSize = 5 //number of messages to be cached
+            MessageCacheSize = 5, // number of messages to be cached
         };
 
         _client = new DiscordSocketClient(config);
 
-        //Subscribe to Events
+        // Subscribe to events
         _client.SlashCommandExecuted += SlashCommandHandler;
         _client.ButtonExecuted += ButtonCommandHandler;
         _client.UserJoined += UserJoinedHandler;
@@ -75,50 +79,50 @@ public class Program
         _client.ModalSubmitted += ModalSubmittedHandler;
         _client.MessageReceived += MessageReceivedHandler;
 
-        //Connect to Discord
+        // Connect to Discord
         TaskCompletionSource<bool> readyTcs = new TaskCompletionSource<bool>();
-        _client.Ready += () => //wait until "ready"
+        _client.Ready += () =>
         {
             readyTcs.SetResult(true);
             return Task.CompletedTask;
         };
 
-        Console.WriteLine($"-> Login into Discord...");
+        Console.WriteLine("-> Logging into Discord...");
         await _client.LoginAsync(TokenType.Bot, bot_token);
-        Thread.Sleep(500); //Discord API is sometimes sensitive, so to avoid errors
+        Thread.Sleep(500); // Wait briefly to avoid Discord API timing issues
         await _client.StartAsync();
         Console.WriteLine("-> Login successful!");
         await readyTcs.Task;
 
-        //Set Variables
+        // Set Variables
         await SetVariables();
 
-        //Register Commands
+        // Register Commands
         await RegisterCommands();
 
-        //Start AI Ratelimit resseter
+        // Start AI Rate Limit resseter
         AIRatelimitReset();
 
-        //Register Exception Handler
+        // Register Exception Handler
         AppDomain.CurrentDomain.UnhandledException += ExceptionHandler;
 
-        //set bot account status
+        // Set bot account status
         await _client.SetCustomStatusAsync("answers your questions");
 
-        //Start Healthcheck
+        // Start Healthcheck
         HealthCheck();
 
-        //Start Userstatus logging
-        LogOnlineUsersAsync();
+        // Start User Status Logging
+        await LogOnlineUsersAsync();
 
-        //Start Stats Channel
+        // Start Stats Channel update timer
         UpdateStatsChannel_Timer();
 
-        Console.WriteLine($"Liebo started successfull.");
+        Console.WriteLine("Liebo started successfully.");
         await Task.Delay(-1);
     }
 
-    private async Task SetVersion()
+    private Task SetVersion()
     {
         try
         {
@@ -131,18 +135,18 @@ public class Program
         }
     }
 
-    public async Task SetVariables()
+    private Task SetVariables()
     {
-        guild = _client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("guild_id")));
-        logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("logchannel_id"))) as SocketTextChannel;
-        welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
-        jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
-        aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
-        statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("statschannel_id"))) as SocketTextChannel;
-        lieboupdatechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("lieboupdatechannel_id"))) as SocketTextChannel;
+        guild = _client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")));
+        logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("LOGCHANNEL_ID"))) as SocketTextChannel;
+        welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("WELCOMECHANNEL_ID"))) as SocketTextChannel;
+        jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("JOBCHANNEL_ID"))) as SocketTextChannel;
+        aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("AICHANNEL_ID"))) as SocketTextChannel;
+        statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("STATCHANNEL_ID"))) as SocketTextChannel;
+        lieboupdatechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("LIBEOUPDATECHANNEL_ID"))) as SocketTextChannel;
 
-        link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
-        star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("star_roleid")));
+        link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("LINKAPPROVED_ROLEID")));
+        star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("STAR_ROLEID")));
     }
 
     public async Task RegisterCommands()
@@ -200,17 +204,17 @@ public class Program
         });
     }
 
-    public static void HealthCheck()
+    private static void HealthCheck()
     {
-        healtcheck_host.Prefixes.Add("http://localhost:5000/");
+        healthcheck_host.Prefixes.Add("http://localhost:5000/");
 
-        healtcheck_host.Start();
+        healthcheck_host.Start();
 
         Task.Run(async () =>
         {
             while (true)
             {
-                var context = await healtcheck_host.GetContextAsync();
+                var context = await healthcheck_host.GetContextAsync();
                 var response = context.Response;
 
                 var healthStatus = _client.ConnectionState == Discord.ConnectionState.Connected ? "OK" : "FAIL";
@@ -253,7 +257,7 @@ public class Program
     }
     private async Task LogOnlineUsersAsync()
     {
-        using (var writer = new StreamWriter("onlinehistory.csv", true))
+        await using (var writer = new StreamWriter("onlinehistory.csv", true))
         {
             var onlineCount = guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot);
             await writer.WriteLineAsync($"{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()},{onlineCount}");
@@ -270,7 +274,7 @@ public class Program
     }
     private async Task UpdateStatsChannel()
     {
-        var stats_embed = new EmbedBuilder
+        var statsEmbed = new EmbedBuilder
         {
             Description = $"# LibreChat Discord Statistics:\n" +
             $"### {guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot)}/{guild.Users.Count(user => !user.IsBot)} Users are currently online\n (*{guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot && user.Roles.Any(role => role.Id == star_role.Id))} of them with a ⭐*)",
@@ -286,22 +290,22 @@ public class Program
         await message.ModifyAsync(msg =>
         {
             msg.Content = "";
-            msg.Embed = stats_embed;
+            msg.Embed = statsEmbed;
             msg.Attachments = new[] { new FileAttachment(GetOnlineUsersPng(), "image.png") };
         });
     }
     
-    private int ai_ratelimit = 0;
+    private int aiRateLimit = 0;
     private async void AIRatelimitReset()
     {
         while (true)
         {
             await Task.Delay(TimeSpan.FromMinutes(1));
-            ai_ratelimit = 0;
+            aiRateLimit = 0;
         }
     }
 
-    public MemoryStream GetOnlineUsersPng()
+    private MemoryStream GetOnlineUsersPng()
     {
         ScottPlot.Plot myPlot = new();
 
@@ -369,71 +373,65 @@ public class Program
         //handle debug cmd
         if(command.CommandName == "debug")
         {
-            string cmd = command.Data.Options.FirstOrDefault(x => x.Name == "cmd")?.Value.ToString();
+            var cmd = command.Data.Options.FirstOrDefault(x => x.Name == "cmd")?.Value.ToString();
             await command.DeferAsync(ephemeral: true);
 
-            if(cmd == "test")
+            switch (cmd)
             {
-                PingReply pingreply;
-                using (var pinger = new Ping())
-                {
-                    pingreply = pinger.Send("1.1.1.1", 1000);
-                }
+                case "test":
+                    PingReply pingreply;
+                    using (var pinger = new Ping())
+                    {
+                        pingreply = pinger.Send("1.1.1.1", 1000);
+                    }
 
-                await command.FollowupAsync( 
-                    $"`Status:` active and operating (v{version})\n" +
-                    $"`Discord Connection State:` {_client.ConnectionState}\n" +
-                    $"`Ping to Cloudflare (Connection Test):` {pingreply.Status} ({pingreply.RoundtripTime}ms)\n" +
-                    $"`Time (UTC):` {DateTime.UtcNow.ToString("HH:mm:ss")}, {DateTime.UtcNow.ToString("dd.MM.yyyy")}\n"
-                );
-                return;
-            }
+                    await command.FollowupAsync(
+                        $"`Status:` active and operating (v{version})\n" +
+                        $"`Discord Connection State:` {_client.ConnectionState}\n" +
+                        $"`Ping to Cloudflare (Connection Test):` {pingreply.Status} ({pingreply.RoundtripTime}ms)\n" +
+                        $"`Time (UTC):` {DateTime.UtcNow:HH:mm:ss}, {DateTime.UtcNow:dd.MM.yyyy}\n"
+                    );
+                    break;
 
-            if(cmd == "join")
-            {
-                await UserJoinedHandler(guild.GetUser(command.User.Id));
-                await command.FollowupAsync("done");
-                return;
-            }
+                case "join":
+                    await UserJoinedHandler(guild.GetUser(command.User.Id));
+                    await command.FollowupAsync("done");
+                    break;
 
-            if(cmd == "leave")
-            {
-                await UserLeftHandler(guild, guild.GetUser(command.User.Id));
-                await command.FollowupAsync("done");
-                return;
-            }
+                case "leave":
+                    await UserLeftHandler(guild, guild.GetUser(command.User.Id));
+                    await command.FollowupAsync("done");
+                    break;
 
-            if(cmd == "debug")
-            {
-                //temp command for testing (does nothing in prod.)
-                await command.FollowupAsync("done");
-                return;
-            }
+                case "debug":
+                    // Temp command for testing (does nothing in prod.)
+                    await command.FollowupAsync("done");
+                    break;
 
-            if(cmd == "trigger statschannel")
-            {
-                await UpdateStatsChannel();
-                await command.FollowupAsync("done");
-                return;
-            }
+                case "trigger statschannel":
+                    await UpdateStatsChannel();
+                    await command.FollowupAsync("done");
+                    break;
 
-            if(cmd == "install statschannel")
-            {
-                var embed = new EmbedBuilder
-                {
-                    Description = $"installing..",
-                }
-                .Build();
+                case "install statschannel":
+                    var embed = new EmbedBuilder
+                    {
+                        Description = "installing..",
+                    }.Build();
 
-                await command.Channel.SendMessageAsync(embed: embed);
-                return;
+                    await command.Channel.SendMessageAsync(embed: embed);
+                    break;
+
+                default:
+                    await command.FollowupAsync("Unknown command.");
+                    break;
             }
         }
 
         //handle roadmap cmd
         if(command.CommandName == "roadmap")
         {
-            var roadmap_embed = new EmbedBuilder
+            var roadmapEmbed = new EmbedBuilder
             {
                 Title = "What features are currently in development for LibreChat?",
                 Description = "Click on the button below to get to the current Roadmap!",
@@ -441,15 +439,15 @@ public class Program
             }
             .Build();
 
-            var roadmap_button = new ComponentBuilder();
-            roadmap_button.WithButton(new ButtonBuilder()
+            var roadmapButton = new ComponentBuilder();
+            roadmapButton.WithButton(new ButtonBuilder()
             {
                 Label = "Roadmap 🚀",
-                Url = Environment.GetEnvironmentVariable("roadmap_link"),
+                Url = Environment.GetEnvironmentVariable("ROADMAP_LINK"),
                 Style = ButtonStyle.Link,
             });
 
-            await command.RespondAsync(embed: roadmap_embed, components: roadmap_button.Build(), ephemeral: true);
+            await command.RespondAsync(embed: roadmapEmbed, components: roadmapButton.Build(), ephemeral: true);
         }
 
         //handle jobs cmd
@@ -468,7 +466,7 @@ public class Program
                 return;
             }*/
 
-            var joboffer_input = new ModalBuilder()
+            var jobOfferInput = new ModalBuilder()
             .WithTitle("Job Offer")
             .WithCustomId("joboffer_modal")
             .AddTextInput("What is your designation?", "designation_input", TextInputStyle.Short, required: true, placeholder:"e.g. Freelancer")
@@ -477,7 +475,7 @@ public class Program
             .AddTextInput("Do you have a Website? (only if yes)", "website_input", TextInputStyle.Short, required: false, placeholder:"e.g. https://mycoolsite.com")
             .AddTextInput("Would you like to add anything else?", "other_input", TextInputStyle.Paragraph, required: false);
 
-            await command.RespondWithModalAsync(joboffer_input.Build());
+            await command.RespondWithModalAsync(jobOfferInput.Build());
 
             //continue in modal funktion
         }
@@ -485,7 +483,7 @@ public class Program
         //handle contribute cmd
         if(command.CommandName == "contribute")
         {
-            var contribute_embed = new EmbedBuilder
+            var contributeEmbed = new EmbedBuilder
             {
                 Description = @"# Would you like to contribute to the development of Librechat?
 *Nice! We are happy about every PR!*
@@ -510,29 +508,29 @@ You can also support LibreChat by translating Librechat into your native languag
             .WithButton(new ButtonBuilder()
             {
                 Label = "Development 🚀",
-                Url = Environment.GetEnvironmentVariable("contribute_dev_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_DEV_LINK"),
                 Style = ButtonStyle.Link,
             })
             .WithButton(new ButtonBuilder()
             {
                 Label = "Documentation 📚",
-                Url = Environment.GetEnvironmentVariable("contribute_docs_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_DOCS_LINK"),
                 Style = ButtonStyle.Link,
             })
             .WithButton(new ButtonBuilder()
             {
                 Label = "Translation 🌍",
-                Url = Environment.GetEnvironmentVariable("contribute_translate_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_TRANSLATE_LINK"),
                 Style = ButtonStyle.Link,
             });
 
-            await command.RespondAsync(embed: contribute_embed, components: componentBuilder.Build(), ephemeral: true);
+            await command.RespondAsync(embed: contributeEmbed, components: componentBuilder.Build(), ephemeral: true);
         }
 
         //handle link cmd
         if(command.CommandName == "link")
         {
-            var addlink_embed = new EmbedBuilder
+            var addLinkEmbed = new EmbedBuilder
             {
                 Description = $@"# Why is my message being deleted?
 **Your message has probably been deleted as we have a link whitelist for security reasons.**
@@ -558,7 +556,7 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
                 Style = ButtonStyle.Secondary,
             });
 
-            await command.RespondAsync(embed: addlink_embed, components: componentBuilder.Build(), ephemeral: true);
+            await command.RespondAsync(embed: addLinkEmbed, components: componentBuilder.Build(), ephemeral: true);
         }
     }
 
@@ -566,7 +564,7 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
     {
         if(modal.Data.CustomId == "joboffer_modal")
         {
-            var job_embed = new EmbedBuilder
+            var jobEmbed = new EmbedBuilder
             {
                 Description = @$"# {modal.Data.Components.First(x => x.CustomId == "designation_input").Value} looking for assignments!
                 Hi, I'm {modal.User.Mention} and I'm happy to offer you my help with your project!",
@@ -580,19 +578,19 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
 
             if(modal.Data.Components.First(x => x.CustomId == "website_input").Value != "")
             {
-                var website_button = new ComponentBuilder();
-                website_button.WithButton(new ButtonBuilder()
+                var websiteButton = new ComponentBuilder();
+                websiteButton.WithButton(new ButtonBuilder()
                 {
                     Label = "Go to my Website! 🌐",
                     Url = modal.Data.Components.First(x => x.CustomId == "website_input").Value,
                     Style = ButtonStyle.Link,
                 });
 
-                await jobchannel.SendMessageAsync(embed: job_embed, components: website_button.Build());
+                await jobchannel.SendMessageAsync(embed: jobEmbed, components: websiteButton.Build());
             }
             else
             {
-                await jobchannel.SendMessageAsync(embed: job_embed);
+                await jobchannel.SendMessageAsync(embed: jobEmbed);
             }
 
             await modal.RespondAsync("done", ephemeral: true);
@@ -600,7 +598,7 @@ Each newly added domain is noted in {lieboupdatechannel.Mention}.
 
         if(modal.Data.CustomId == "requesturl_modal")
         {
-            var success_embed = new EmbedBuilder
+            var successEmbed = new EmbedBuilder
             {
                 Description = $@"# Thank you!
 Your request has been saved and if the URL is useful, it will be added soon!
@@ -608,9 +606,9 @@ Your request has been saved and if the URL is useful, it will be added soon!
                 Color = Color.Blue,
             }
             .Build();
-            await modal.RespondAsync(embed: success_embed, ephemeral: true);
+            await modal.RespondAsync(embed: successEmbed, ephemeral: true);
 
-            var log_embed = new EmbedBuilder
+            var logEmbed = new EmbedBuilder
             {
                 Author = new EmbedAuthorBuilder().WithName("URL Request"),
                 Description = $"## {modal.User.Mention} has requested a URL",
@@ -620,7 +618,7 @@ Your request has been saved and if the URL is useful, it will be added soon!
             .AddField("Requested URL:", $"```{modal.Data.Components.First(x => x.CustomId == "url_input").Value}```")
             .AddField("Reason:", $"```{modal.Data.Components.First(x => x.CustomId == "reason_input").Value}```")
             .Build();
-            await logchannel.SendMessageAsync("<@777604723435896843>", embed: log_embed); //ping for information
+            await logchannel.SendMessageAsync("<@777604723435896843>", embed: logEmbed); //ping for information
         }
     }
 
@@ -628,131 +626,124 @@ Your request has been saved and if the URL is useful, it will be added soon!
     {
         if(button.Data.CustomId == "requesturl_btn")
         {
-            var requesturl_modal = new ModalBuilder()
+            var requestUrlModal = new ModalBuilder()
             .WithTitle("Request a URL")
             .WithCustomId("requesturl_modal")
             .AddTextInput("Which URL would you add to the whitelist?", "url_input", TextInputStyle.Short, required: true, placeholder:"https://librechat.ai", minLength: 11)
             .AddTextInput("Why do you think the domain is useful?", "reason_input", TextInputStyle.Paragraph, required: true, placeholder:"The site provides news about Ai, tutorials for Ai, the site is a new AI provider, ...", minLength: 30);
 
-            await button.RespondWithModalAsync(requesturl_modal.Build());
+            await button.RespondWithModalAsync(requestUrlModal.Build());
         }
     }
 
     private async Task MessageReceivedHandler(SocketMessage message)
     {
+        // Handle messages in the job channel
         if(message.Channel.Id == jobchannel.Id && !message.Author.IsBot)
         {
             await message.DeleteAsync();
 
-            //log
-            var log_embed = new EmbedBuilder
-            {
-                Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                Title = $"A message has been deleted in {jobchannel.Mention}",
-                Description = $"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
-                Color = Color.Gold,
-                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-            }
+            // Use the user's display name with a preceding '@'
+            string authorDisplay = "@" + ((message.Author as SocketGuildUser)?.DisplayName ?? message.Author.Username);
+
+            var logEmbed = new EmbedBuilder()
+            .WithAuthor("Message deleted")
+            .WithTitle($"A message has been deleted in {jobchannel.Mention}")
+            .WithDescription($"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {authorDisplay}:```\n{message.Content.Replace("`", "`\u200B")}```")
+            .WithColor(Color.Gold)
+            .WithFooter($"Liebo v{version}")
             .Build();
 
-            await logchannel.SendMessageAsync(embed: log_embed);
+            await logchannel.SendMessageAsync(embed: logEmbed);
         }
 
-        //link whitelist
-        //link check -> deactivated/inactive and not finished
+        // Check for disallowed links (link whitelist)
         if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) && !message.Author.IsBot)
-        {  
+        {
             UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
-            List<Url> found = parser.Detect();
+            List<Url> foundUrls = parser.Detect();
 
             List<string> allowedTlds = new List<string> { "ai", "com", "co", "net", "org", "io", "info", "xyz", "us", "de", "me", "tv", "dev", "pro", "edu", "be" };
 
-            foreach(Url url in found)
+            foreach (Url url in foundUrls)
             {
-                if(found.Any(url => allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld))))
+                // Check if the URL's host ends with one of the allowed TLDs
+                if(allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld, StringComparison.OrdinalIgnoreCase)))
                 {
                     string filePath = "assets/link_whitelist.txt";
+                    List<string> whitelist = File.ReadAllLines(filePath).ToList();
+                    string hostWithoutWww = url.GetHost().Replace("www.", "");
 
-                    List<string> liste = File.ReadAllLines(filePath).ToList();
-                    string formatted_log_msg = message.Content;
-                    
-                    if (!liste.Contains(url.GetHost().Replace("www.", "")))
+                    if(!whitelist.Contains(hostWithoutWww))
                     {
                         await message.DeleteAsync();
 
-                        //log
-                        var log_embed = new EmbedBuilder
-                        {
-                            Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                            Title = $"A message has been deleted in {(message.Channel as SocketTextChannel).Mention}",
-                            Description = $"Reason: Not allowed link found\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
-                            Color = Color.Red,
-                            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                        }
+                        string channelMention = (message.Channel as SocketTextChannel)?.Mention ?? message.Channel.Name;
+                        string authorDisplay = "@" + ((message.Author as SocketGuildUser)?.DisplayName ?? message.Author.Username);
+
+                        var logEmbed = new EmbedBuilder()
+                        .WithAuthor("Message deleted")
+                        .WithTitle($"A message has been deleted in {channelMention}")
+                        .WithDescription($"Reason: Not allowed link found\nContent of the deleted message from {authorDisplay}:```\n{message.Content.Replace("`", "`\u200B")}```")
+                        .WithColor(Color.Red)
+                        .WithFooter($"Liebo v{version}")
                         .Build();
 
-                        await logchannel.SendMessageAsync(embed: log_embed);
+                        await logchannel.SendMessageAsync(embed: logEmbed);
+                        break; // exit loop after deletion
                     }
                 }
             }
         }
 
-        //ai chat
+        // AI chat handling
         if(message.Channel.Id == aichannel.Id && message.Content.Contains(_client.CurrentUser.Mention) && !message.Author.IsBot)
         {
-            ai_ratelimit ++;
-            //check public ratelimit
-            if(ai_ratelimit >= 5)
+            aiRateLimit++;
+            if(aiRateLimit >= 5)
             {
-                var error_response_embed = new EmbedBuilder
-                {
-                    Description = $"### *Unfortunately, an error has occurred.*\n*The rate limit for the AI has been reached. Please try again in one minute!*",
-                    Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                }
+                var errorResponseEmbed = new EmbedBuilder()
+                .WithDescription("### *Unfortunately, an error has occurred.*\n*The rate limit for the AI has been reached. Please try again in one minute!*")
+                .WithFooter($"Liebo v{version}")
                 .Build();
-                await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
+                await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                 return;
             }
 
             _ = Task.Run(async () =>
             {
-                try{
-                    await message.Channel.TriggerTypingAsync(); //typing indicator
+                try
+                {
+                    await message.Channel.TriggerTypingAsync();
 
-                    //openai moderation
-                    ModerationClient moderation_client = new(model: "omni-moderation-latest", new ApiKeyCredential(Environment.GetEnvironmentVariable("openai_apikey")));
+                    // OpenAI moderation check
+                    ModerationClient moderationClient = new ModerationClient(model: "omni-moderation-latest", new ApiKeyCredential(Environment.GetEnvironmentVariable("OPENAI_APIKEY")));
+                    ModerationResult moderationResult = await moderationClient.ClassifyTextAsync(message.CleanContent);
 
-                    ModerationResult moderationresult = await moderation_client.ClassifyTextAsync(message.CleanContent);
-
-                    if(moderationresult.Flagged)
+                    if(moderationResult.Flagged)
                     {
-                        //log
-                        var log_embed = new EmbedBuilder
-                        {
-                            Title = $"AI Chat blocked:",
-                            Description = $"{message.Author.Mention} tried to write this with the ai: (illegal content found):\n```{message.Content}```",
-                            Color = Color.Red,
-                        }
+                        var logEmbed = new EmbedBuilder()
+                        .WithTitle("AI Chat blocked:")
+                        .WithDescription($"{message.Author.Mention} tried to write this with the AI (illegal content found):\n```{message.Content}```")
+                        .WithColor(Color.Red)
                         .Build();
-                        await logchannel.SendMessageAsync(embed: log_embed);
+                        await logchannel.SendMessageAsync(embed: logEmbed);
 
-                        var error_response_embed = new EmbedBuilder
-                        {
-                            Description = $"### *Unfortunately, an error has occurred.*\n*This message violates the OpenAI rules. Please refrain from any inappropriate chats with the AI!*",
-                            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                        }
+                        var errorResponseEmbed = new EmbedBuilder()
+                        .WithDescription("### *Unfortunately, an error has occurred.*\n*This message violates the OpenAI rules. Please refrain from any inappropriate chats with the AI!*")
+                        .WithFooter($"Liebo v{version}")
                         .Build();
-                        await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
+                        await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                         return;
                     }
 
-                    List<ChatMessage> previous_messages = new List<ChatMessage>
+                    List<ChatMessage> previousMessages = new List<ChatMessage>
                     {
                         new SystemChatMessage(@"You are Liebo, a Discord Bot on the official Discord server of “LibreChat”. LibreChat is a free, open source AI chat platform. On LibreChat, all users can use all kinds of artificial intelligence with their own API keys.
 Your job is to help users with questions about LibreChat. You are only allowed to answer questions about LibreChat, not about any other topic.
 You will always answer in a friendly manner and be specific to the question asked.
 You cannot see message histories, you can only reply to the question that has just been asked.
-The official website of Librechat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
+The official website of LibreChat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
 Anyone can also download LibreChat and host it on their own system.
 You always answer with Markdown and if you don't know something, you refer the users to the LibreChat documentation: “https://www.librechat.ai/docs”. 
 For EVERY question you get, use the “GetDocs” tool to get up-to-date information about LibreChat. Make sure you choose the right file! You never answer from your own knowledge, you always use the tools!
@@ -762,95 +753,92 @@ Note that you do not know everything about LibreChat and your tips may not alway
                         new UserChatMessage(message.Content.Replace(_client.CurrentUser.Mention, "").Replace("\"", "\\\"").ReplaceLineEndings(" "))
                     };
 
-                    OpenAIClientOptions settings = new()
+                    // Set up the OpenAI client
+                    OpenAIClientOptions settings = new OpenAIClientOptions
                     {
                         Endpoint = new Uri("https://api.groq.com/openai/v1"),
                     };
-                    
-                    ChatClient oa_client = new(model: Environment.GetEnvironmentVariable("groq_aimodel"), new ApiKeyCredential(Environment.GetEnvironmentVariable("groq_apikey")), options: settings);
 
-                    ChatCompletionOptions options = new()
+                    ChatClient oaClient = new ChatClient(
+                        model: Environment.GetEnvironmentVariable("GROQ_AIMODEL"),
+                        new ApiKeyCredential(Environment.GetEnvironmentVariable("GROQ_APIKEY")),
+                        options: settings);
+
+                    ChatCompletionOptions chatOptions = new ChatCompletionOptions
                     {
                         Tools = { getDocs_tool },
                         Temperature = 0.2f,
                     };
 
-                    ChatCompletion chatCompletion = await oa_client.CompleteChatAsync(previous_messages, options);
+                    // Get the initial chat completion
+                    ChatCompletion chatCompletion = await oaClient.CompleteChatAsync(previousMessages, chatOptions);
 
-                    //tool
+                    // Handle tool calls if needed
                     bool requiresAction;
-
                     do
                     {
                         requiresAction = false;
-                        chatCompletion = oa_client.CompleteChat(previous_messages, options);
+                        chatCompletion = oaClient.CompleteChat(previousMessages, chatOptions);
 
                         switch (chatCompletion.FinishReason)
                         {
                             case ChatFinishReason.Stop:
-                                {
-                                    break;
-                                }
+                                break;
 
                             case ChatFinishReason.ToolCalls:
+                                // Add the assistant message with tool calls to the conversation history.
+                                previousMessages.Add(new AssistantChatMessage(chatCompletion));
+
+                                // Process each tool call.
+                                foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
                                 {
-                                    //first, add the assistant message with tool calls to the conversation history.
-                                    previous_messages.Add(new AssistantChatMessage(chatCompletion));
-
-                                    //then, add a new tool message for each tool call that is resolved.
-                                    foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
+                                    switch (toolCall.FunctionName)
                                     {
-                                        switch (toolCall.FunctionName)
-                                        {
-                                            case nameof(GetDocs):
-                                                {
-                                                    string toolResult = GetDocs(Regex.Match(toolCall.FunctionArguments.ToString(), @"(?<=""filename"":\s*\"")(.*?)(?=\"")").Value);
-                                                    previous_messages.Add(new ToolChatMessage(toolCall.Id, toolResult.ToString()));
-                                                    break;
-                                                }
+                                        case nameof(GetDocs):
+                                            {
+                                                var match = Regex.Match(toolCall.FunctionArguments.ToString(), @"(?<=""filename"":\s*\"")(.*?)(?=\"")");
+                                                string filename = match.Success ? match.Value : "";
+                                                string toolResult = GetDocs(filename);
+                                                previousMessages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                                break;
+                                            }
 
-                                            default:
-                                                {
-                                                    throw new NotImplementedException();
-                                                }
-                                        }
+                                        default:
+                                            throw new NotImplementedException();
                                     }
-
-                                    requiresAction = true;
-                                    break;
                                 }
+
+                                requiresAction = true;
+                                break;
 
                             default:
                                 throw new NotImplementedException(chatCompletion.FinishReason.ToString());
                         }
                     } while (requiresAction);
 
-                    //modify response
+                    // Modify and send the final response.
                     string response = chatCompletion.Content[0].Text;
                     response = response.Replace("Liebo", _client.CurrentUser.Mention);
-                    response = response.Replace("),", ") ,").Replace(").", ") ."); //fix broken markdown
+                    response = response.Replace("),", ") ,").Replace(").", ") ."); // fix broken markdown
 
-                    await message.Channel.SendMessageAsync($"{response}\n-# This text is AI generated. It may contain mistakes. (Output: {chatCompletion.Usage.OutputTokenCount} Token)", messageReference: new MessageReference(message.Id));
+                    await message.Channel.SendMessageAsync(
+                        $"{response}\n-# This text is AI generated. It may contain mistakes. (Output: {chatCompletion.Usage.OutputTokenCount} Token)",
+                        messageReference: new MessageReference(message.Id));
                 }
                 catch (Exception ex)
                 {
-                    //log
-                    var log_embed = new EmbedBuilder
-                    {
-                        Title = $"AI Chat Error:",
-                        Description = $"Error:\n```{ex.Message}```",
-                        Color = Color.Red,
-                    }
+                    var logEmbed = new EmbedBuilder()
+                    .WithTitle("AI Chat Error:")
+                    .WithDescription($"Error:\n```{ex.Message}```")
+                    .WithColor(Color.Red)
                     .Build();
-                    await logchannel.SendMessageAsync(embed: log_embed);
+                    await logchannel.SendMessageAsync(embed: logEmbed);
 
-                    var error_response_embed = new EmbedBuilder
-                    {
-                        Description = $"### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*",
-                        Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                    }
+                    var errorResponseEmbed = new EmbedBuilder()
+                    .WithDescription("### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*")
+                    .WithFooter($"Liebo v{version}")
                     .Build();
-                    await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
+                    await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                 }
             });
         }
@@ -885,25 +873,28 @@ Note that you do not know everything about LibreChat and your tips may not alway
     private async Task UserJoinedHandler(SocketGuildUser user)
     {
         //welcome message
-        string default_pf = Path.Combine(Environment.CurrentDirectory, "assets", "default_pf.png");
-        var welcome_embed = new EmbedBuilder
+        string defaultPf = Path.Combine(Environment.CurrentDirectory, "assets", "default_pf.png");
+        // Create a consistent mention using the display name with a preceding "@"
+        string userDisplayWithAt = "@" + user.DisplayName;
+    
+        var welcomeEmbed = new EmbedBuilder
         {
             Author = new EmbedAuthorBuilder().WithName("Welcome!"),
             Title = "A new user has joined! :heart_eyes:",
             ThumbnailUrl = user.GetAvatarUrl() ?? "attachment://default_pf.png",
-            Description = $"Welcome on {guild.Name}, {user.Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Description = $"Welcome on {guild.Name}, {userDisplayWithAt}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.Green,
         }
         .Build();
 
         await (user.GetAvatarUrl() != null 
-        ? welcomechannel.SendMessageAsync(embed: welcome_embed) 
-        : welcomechannel.SendFileAsync(default_pf, embed: welcome_embed));
+        ? welcomechannel.SendMessageAsync(embed: welcomeEmbed) 
+        : welcomechannel.SendFileAsync(defaultPf, embed: welcomeEmbed));
 
         //dm message
-        var welcome_user_embed = new EmbedBuilder
+        var welcomeUserEmbed = new EmbedBuilder
         {
-            Description = @$"# Welcome on {guild.Name}, {guild.GetUser(user.Id).DisplayName}! 👋
+            Description = @$"# Welcome on {guild.Name}, {userDisplayWithAt}! 👋
             I'm {_client.CurrentUser.Username}, and I'm here to make sure everything works and everyone feels comfortable.  
             If you have any questions, feel free to ask any time!
             Have fun on {guild.Name} 😊",
@@ -913,21 +904,22 @@ Note that you do not know everything about LibreChat and your tips may not alway
         }
         .Build();
 
-        await user.SendMessageAsync(embed: welcome_user_embed);
+        await user.SendMessageAsync(embed: welcomeUserEmbed);
     }
 
-    private async Task UserLeftHandler(SocketGuild guild, SocketUser user)
+    private async Task UserLeftHandler(SocketGuild leftGuild, SocketUser user)
     {
-        var goodbye_embed = new EmbedBuilder
+        string displayName = (user as SocketGuildUser)?.DisplayName ?? user.Username;
+        string userDisplayWithAt = "@" + displayName;
+        var goodbyeEmbed = new EmbedBuilder
         {
             Author = new EmbedAuthorBuilder().WithName("Goodbye..."),
-            Title = $"A user has left the server. :pensive:",
-            ThumbnailUrl = user.GetAvatarUrl(),
-            Description = $"{user.Mention} has left...\n-# We are now {guild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Title = "A user has left the server. :pensive:",
+            Description = $"{userDisplayWithAt} has left...\n-# We are now {leftGuild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.DarkRed,
         }
         .Build();
 
-        await welcomechannel.SendMessageAsync(embed: goodbye_embed);
+        await welcomechannel.SendMessageAsync(embed: goodbyeEmbed);
     }
 }
