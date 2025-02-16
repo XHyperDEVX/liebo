@@ -17,7 +17,7 @@ using Color = Discord.Color;
 
 public class Program
 {
-    //Variable
+    // Variables
     private static DiscordSocketClient _client;
     private static string version;
     private static string bot_token;
@@ -30,17 +30,20 @@ public class Program
     private static SocketTextChannel lieboupdatechannel;
     private static SocketRole link_approved_role;
     private static SocketRole star_role;
-    private static HttpListener healtcheck_host = new HttpListener();
+    private static HttpListener healthcheck_host = new HttpListener();
+    
     public static void Main(string[] args) => new Program().Startup().GetAwaiter().GetResult();
 
     private async Task Startup()
     {
+        // Load environment variables from .env file
         DotNetEnv.Env.Load();
         bot_token = Environment.GetEnvironmentVariable("BOT_TOKEN");
-        //Set Version
+        
+        // Set Version
         await SetVersion();
 
-        //Startup
+        // Startup logging
         Console.WriteLine("\n");
         string asciiLogo = @"
 +------------------------------------------------------------+
@@ -53,21 +56,22 @@ public class Program
 |########## ########### ########## #########   ########      |
 +------------------------------------------------------------+
         ";
-        Console.WriteLine(asciiLogo); //made with https://www.asciiart.eu/text-to-ascii-art
+        Console.WriteLine(asciiLogo); // made with https://www.asciiart.eu/text-to-ascii-art
         Console.WriteLine($"Liebo (v{version}) is starting...");
-        //Set Client
+
+        // Set Client configuration
         var config = new DiscordSocketConfig()
         {
             GatewayIntents = GatewayIntents.All,
             LogGatewayIntentWarnings = false,
             AlwaysDownloadUsers = true,
             ResponseInternalTimeCheck = false,
-            MessageCacheSize = 5, //number of messages to be cached
+            MessageCacheSize = 5, // number of messages to be cached
         };
 
         _client = new DiscordSocketClient(config);
 
-        //Subscribe to Events
+        // Subscribe to events
         _client.SlashCommandExecuted += SlashCommandHandler;
         _client.ButtonExecuted += ButtonCommandHandler;
         _client.UserJoined += UserJoinedHandler;
@@ -75,46 +79,46 @@ public class Program
         _client.ModalSubmitted += ModalSubmittedHandler;
         _client.MessageReceived += MessageReceivedHandler;
 
-        //Connect to Discord
+        // Connect to Discord
         TaskCompletionSource<bool> readyTcs = new TaskCompletionSource<bool>();
-        _client.Ready += () => //wait until "ready"
+        _client.Ready += () =>
         {
             readyTcs.SetResult(true);
             return Task.CompletedTask;
         };
 
-        Console.WriteLine($"-> Login into Discord...");
+        Console.WriteLine("-> Logging into Discord...");
         await _client.LoginAsync(TokenType.Bot, bot_token);
-        Thread.Sleep(500); //Discord API is sometimes sensitive, so to avoid errors
+        Thread.Sleep(500); // Wait briefly to avoid Discord API timing issues
         await _client.StartAsync();
         Console.WriteLine("-> Login successful!");
         await readyTcs.Task;
 
-        //Set Variables
+        // Set Variables
         await SetVariables();
 
-        //Register Commands
+        // Register Commands
         await RegisterCommands();
 
-        //Start AI Ratelimit resseter
+        // Start AI Rate Limit resseter
         AIRatelimitReset();
 
-        //Register Exception Handler
+        // Register Exception Handler
         AppDomain.CurrentDomain.UnhandledException += ExceptionHandler;
 
-        //set bot account status
+        // Set bot account status
         await _client.SetCustomStatusAsync("answers your questions");
 
-        //Start Healthcheck
+        // Start Healthcheck
         HealthCheck();
 
-        //Start Userstatus logging
+        // Start User Status Logging
         await LogOnlineUsersAsync();
 
-        //Start Stats Channel
+        // Start Stats Channel update timer
         UpdateStatsChannel_Timer();
 
-        Console.WriteLine($"Liebo started successfull.");
+        Console.WriteLine("Liebo started successfully.");
         await Task.Delay(-1);
     }
 
@@ -202,15 +206,15 @@ public class Program
 
     private static void HealthCheck()
     {
-        healtcheck_host.Prefixes.Add("http://localhost:5000/");
+        healthcheck_host.Prefixes.Add("http://localhost:5000/");
 
-        healtcheck_host.Start();
+        healthcheck_host.Start();
 
         Task.Run(async () =>
         {
             while (true)
             {
-                var context = await healtcheck_host.GetContextAsync();
+                var context = await healthcheck_host.GetContextAsync();
                 var response = context.Response;
 
                 var healthStatus = _client.ConnectionState == Discord.ConnectionState.Connected ? "OK" : "FAIL";
