@@ -99,6 +99,9 @@ public class Program
         //Start AI Ratelimit resseter
         AIRatelimitReset();
 
+        //Register Exception Handler
+        AppDomain.CurrentDomain.UnhandledException += ExceptionHandler;
+
         //set bot account status
         await _client.SetCustomStatusAsync("answers your questions");
 
@@ -224,6 +227,13 @@ public class Program
                 response.Close();
             }
         });
+    }
+
+    private void ExceptionHandler(object sender, UnhandledExceptionEventArgs e)
+    {
+        Exception ex = (Exception)e.ExceptionObject;
+        Console.WriteLine("\n=========================== Error! ===========================");
+        Console.WriteLine($"{ex.Message}\n\n{ex.ToString()}");
     }
 
     //Bot Functions
