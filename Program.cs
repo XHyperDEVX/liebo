@@ -620,7 +620,7 @@ Your request has been saved and if the URL is useful, it will be added soon!
             .AddField("Requested URL:", $"```{modal.Data.Components.First(x => x.CustomId == "url_input").Value}```")
             .AddField("Reason:", $"```{modal.Data.Components.First(x => x.CustomId == "reason_input").Value}```")
             .Build();
-            await logchannel.SendMessageAsync("<@593467840821198890>", embed: log_embed); //ping for information
+            await logchannel.SendMessageAsync("<@777604723435896843>", embed: log_embed); //ping for information
         }
     }
 
