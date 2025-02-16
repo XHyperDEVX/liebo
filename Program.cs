@@ -36,7 +36,7 @@ public class Program
     private async Task Startup()
     {
         DotNetEnv.Env.Load();
-        bot_token = Environment.GetEnvironmentVariable("bot_token");
+        bot_token = Environment.GetEnvironmentVariable("BOT_TOKEN");
         //Set Version
         await SetVersion();
 
@@ -133,16 +133,16 @@ public class Program
 
     private Task SetVariables()
     {
-        guild = _client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("guild_id")));
-        logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("logchannel_id"))) as SocketTextChannel;
-        welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("welcomechannel_id"))) as SocketTextChannel;
-        jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("jobchannel_id"))) as SocketTextChannel;
-        aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("aichannel_id"))) as SocketTextChannel;
-        statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("statschannel_id"))) as SocketTextChannel;
-        lieboupdatechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("lieboupdatechannel_id"))) as SocketTextChannel;
+        guild = _client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")));
+        logchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("LOGCHANNEL_ID"))) as SocketTextChannel;
+        welcomechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("WELCOMECHANNEL_ID"))) as SocketTextChannel;
+        jobchannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("JOBCHANNEL_ID"))) as SocketTextChannel;
+        aichannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("AICHANNEL_ID"))) as SocketTextChannel;
+        statschannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("STATCHANNEL_ID"))) as SocketTextChannel;
+        lieboupdatechannel = _client.GetChannel(ulong.Parse(Environment.GetEnvironmentVariable("LIBEOUPDATECHANNEL_ID"))) as SocketTextChannel;
 
-        link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("linkapproved_roleid")));
-        star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("star_roleid")));
+        link_approved_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("LINKAPPROVED_ROLEID")));
+        star_role = guild.GetRole(ulong.Parse(Environment.GetEnvironmentVariable("STAR_ROLEID")));
     }
 
     public async Task RegisterCommands()
@@ -439,7 +439,7 @@ public class Program
             roadmapButton.WithButton(new ButtonBuilder()
             {
                 Label = "Roadmap 🚀",
-                Url = Environment.GetEnvironmentVariable("roadmap_link"),
+                Url = Environment.GetEnvironmentVariable("ROADMAP_LINK"),
                 Style = ButtonStyle.Link,
             });
 
@@ -504,19 +504,19 @@ You can also support LibreChat by translating Librechat into your native languag
             .WithButton(new ButtonBuilder()
             {
                 Label = "Development 🚀",
-                Url = Environment.GetEnvironmentVariable("contribute_dev_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_DEV_LINK"),
                 Style = ButtonStyle.Link,
             })
             .WithButton(new ButtonBuilder()
             {
                 Label = "Documentation 📚",
-                Url = Environment.GetEnvironmentVariable("contribute_docs_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_DOCS_LINK"),
                 Style = ButtonStyle.Link,
             })
             .WithButton(new ButtonBuilder()
             {
                 Label = "Translation 🌍",
-                Url = Environment.GetEnvironmentVariable("contribute_translate_link"),
+                Url = Environment.GetEnvironmentVariable("CONTRIBUTE_TRANSLATE_LINK"),
                 Style = ButtonStyle.Link,
             });
 
@@ -634,107 +634,100 @@ Your request has been saved and if the URL is useful, it will be added soon!
 
     private async Task MessageReceivedHandler(SocketMessage message)
     {
+        // Handle messages in the job channel
         if(message.Channel.Id == jobchannel.Id && !message.Author.IsBot)
         {
             await message.DeleteAsync();
 
-            //log
-            var logEmbed = new EmbedBuilder
-            {
-                Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                Title = $"A message has been deleted in {jobchannel.Mention}",
-                Description = $"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
-                Color = Color.Gold,
-                Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-            }
+            // Use the user's display name with a preceding '@'
+            string authorDisplay = "@" + ((message.Author as SocketGuildUser)?.DisplayName ?? message.Author.Username);
+
+            var logEmbed = new EmbedBuilder()
+            .WithAuthor("Message deleted")
+            .WithTitle($"A message has been deleted in {jobchannel.Mention}")
+            .WithDescription($"Reason: The users should use the \"/jobs\" command.\nContent of the deleted message from {authorDisplay}:```\n{message.Content.Replace("`", "`\u200B")}```")
+            .WithColor(Color.Gold)
+            .WithFooter($"Liebo v{version}")
             .Build();
 
             await logchannel.SendMessageAsync(embed: logEmbed);
         }
 
-        //link whitelist
-        //link check -> deactivated/inactive and not finished
+        // Check for disallowed links (link whitelist)
         if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) && !message.Author.IsBot)
-        {  
+        {
             UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
-            List<Url> found = parser.Detect();
+            List<Url> foundUrls = parser.Detect();
 
             List<string> allowedTlds = new List<string> { "ai", "com", "co", "net", "org", "io", "info", "xyz", "us", "de", "me", "tv", "dev", "pro", "edu", "be" };
 
-            foreach(Url url in found)
+            foreach (Url url in foundUrls)
             {
-                if(found.Any(url => allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld))))
+                // Check if the URL's host ends with one of the allowed TLDs
+                if(allowedTlds.Any(tld => url.GetHost().ToString().EndsWith(tld, StringComparison.OrdinalIgnoreCase)))
                 {
                     string filePath = "assets/link_whitelist.txt";
+                    List<string> whitelist = File.ReadAllLines(filePath).ToList();
+                    string hostWithoutWww = url.GetHost().Replace("www.", "");
 
-                    List<string> liste = File.ReadAllLines(filePath).ToList();
-                    string formatted_log_msg = message.Content;
-                    
-                    if (!liste.Contains(url.GetHost().Replace("www.", "")))
+                    if(!whitelist.Contains(hostWithoutWww))
                     {
                         await message.DeleteAsync();
 
-                        //log
-                        var logEmbed = new EmbedBuilder
-                        {
-                            Author = new EmbedAuthorBuilder().WithName("Message deleted"),
-                            Title = $"A message has been deleted in {(message.Channel as SocketTextChannel).Mention}",
-                            Description = $"Reason: Not allowed link found\nContent of the deleted message from {message.Author.Mention}:```\n{message.Content.Replace("`", "`​")}```", //caution! here are “zero-width blanks”
-                            Color = Color.Red,
-                            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                        }
+                        string channelMention = (message.Channel as SocketTextChannel)?.Mention ?? message.Channel.Name;
+                        string authorDisplay = "@" + ((message.Author as SocketGuildUser)?.DisplayName ?? message.Author.Username);
+
+                        var logEmbed = new EmbedBuilder()
+                        .WithAuthor("Message deleted")
+                        .WithTitle($"A message has been deleted in {channelMention}")
+                        .WithDescription($"Reason: Not allowed link found\nContent of the deleted message from {authorDisplay}:```\n{message.Content.Replace("`", "`\u200B")}```")
+                        .WithColor(Color.Red)
+                        .WithFooter($"Liebo v{version}")
                         .Build();
 
                         await logchannel.SendMessageAsync(embed: logEmbed);
+                        break; // exit loop after deletion
                     }
                 }
             }
         }
 
-        //ai chat
+        // AI chat handling
         if(message.Channel.Id == aichannel.Id && message.Content.Contains(_client.CurrentUser.Mention) && !message.Author.IsBot)
         {
-            aiRateLimit ++;
-            //check public rateLimit
+            aiRateLimit++;
             if(aiRateLimit >= 5)
             {
-                var error_response_embed = new EmbedBuilder
-                {
-                    Description = $"### *Unfortunately, an error has occurred.*\n*The rate limit for the AI has been reached. Please try again in one minute!*",
-                    Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                }
+                var errorResponseEmbed = new EmbedBuilder()
+                .WithDescription("### *Unfortunately, an error has occurred.*\n*The rate limit for the AI has been reached. Please try again in one minute!*")
+                .WithFooter($"Liebo v{version}")
                 .Build();
-                await message.Channel.SendMessageAsync(embed: error_response_embed, messageReference: new MessageReference(message.Id));
+                await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                 return;
             }
 
             _ = Task.Run(async () =>
             {
-                try{
-                    await message.Channel.TriggerTypingAsync(); //typing indicator
+                try
+                {
+                    await message.Channel.TriggerTypingAsync();
 
-                    //openai moderation
-                    ModerationClient moderationClient = new(model: "omni-moderation-latest", new ApiKeyCredential(Environment.GetEnvironmentVariable("openai_apikey")));
-
+                    // OpenAI moderation check
+                    ModerationClient moderationClient = new ModerationClient(model: "omni-moderation-latest", new ApiKeyCredential(Environment.GetEnvironmentVariable("OPENAI_APIKEY")));
                     ModerationResult moderationResult = await moderationClient.ClassifyTextAsync(message.CleanContent);
 
                     if(moderationResult.Flagged)
                     {
-                        //log
-                        var logEmbed = new EmbedBuilder
-                        {
-                            Title = $"AI Chat blocked:",
-                            Description = $"{message.Author.Mention} tried to write this with the ai: (illegal content found):\n```{message.Content}```",
-                            Color = Color.Red,
-                        }
+                        var logEmbed = new EmbedBuilder()
+                        .WithTitle("AI Chat blocked:")
+                        .WithDescription($"{message.Author.Mention} tried to write this with the AI (illegal content found):\n```{message.Content}```")
+                        .WithColor(Color.Red)
                         .Build();
                         await logchannel.SendMessageAsync(embed: logEmbed);
 
-                        var errorResponseEmbed = new EmbedBuilder
-                        {
-                            Description = $"### *Unfortunately, an error has occurred.*\n*This message violates the OpenAI rules. Please refrain from any inappropriate chats with the AI!*",
-                            Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                        }
+                        var errorResponseEmbed = new EmbedBuilder()
+                        .WithDescription("### *Unfortunately, an error has occurred.*\n*This message violates the OpenAI rules. Please refrain from any inappropriate chats with the AI!*")
+                        .WithFooter($"Liebo v{version}")
                         .Build();
                         await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                         return;
@@ -746,7 +739,7 @@ Your request has been saved and if the URL is useful, it will be added soon!
 Your job is to help users with questions about LibreChat. You are only allowed to answer questions about LibreChat, not about any other topic.
 You will always answer in a friendly manner and be specific to the question asked.
 You cannot see message histories, you can only reply to the question that has just been asked.
-The official website of Librechat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
+The official website of LibreChat is “https://www.librechat.ai/”, the official guide is “https://www.librechat.ai/docs”. There is a public demo, which can be accessed at “https://librechat-librechat.hf.space/”. The source code is available on GitHub at “https://github.com/danny-avila/LibreChat”.
 Anyone can also download LibreChat and host it on their own system.
 You always answer with Markdown and if you don't know something, you refer the users to the LibreChat documentation: “https://www.librechat.ai/docs”. 
 For EVERY question you get, use the “GetDocs” tool to get up-to-date information about LibreChat. Make sure you choose the right file! You never answer from your own knowledge, you always use the tools!
@@ -756,93 +749,90 @@ Note that you do not know everything about LibreChat and your tips may not alway
                         new UserChatMessage(message.Content.Replace(_client.CurrentUser.Mention, "").Replace("\"", "\\\"").ReplaceLineEndings(" "))
                     };
 
-                    OpenAIClientOptions settings = new()
+                    // Set up the OpenAI client
+                    OpenAIClientOptions settings = new OpenAIClientOptions
                     {
                         Endpoint = new Uri("https://api.groq.com/openai/v1"),
                     };
-                    
-                    ChatClient oaClient = new(model: Environment.GetEnvironmentVariable("groq_aimodel"), new ApiKeyCredential(Environment.GetEnvironmentVariable("groq_apikey")), options: settings);
 
-                    ChatCompletionOptions options = new()
+                    ChatClient oaClient = new ChatClient(
+                        model: Environment.GetEnvironmentVariable("GROQ_AIMODEL"),
+                        new ApiKeyCredential(Environment.GetEnvironmentVariable("GROQ_APIKEY")),
+                        options: settings);
+
+                    ChatCompletionOptions chatOptions = new ChatCompletionOptions
                     {
                         Tools = { getDocs_tool },
                         Temperature = 0.2f,
                     };
 
-                    ChatCompletion chatCompletion = await oaClient.CompleteChatAsync(previousMessages, options);
+                    // Get the initial chat completion
+                    ChatCompletion chatCompletion = await oaClient.CompleteChatAsync(previousMessages, chatOptions);
 
-                    //tool
+                    // Handle tool calls if needed
                     bool requiresAction;
-
                     do
                     {
                         requiresAction = false;
-                        chatCompletion = oaClient.CompleteChat(previousMessages, options);
+                        chatCompletion = oaClient.CompleteChat(previousMessages, chatOptions);
 
                         switch (chatCompletion.FinishReason)
                         {
                             case ChatFinishReason.Stop:
-                                {
-                                    break;
-                                }
+                                break;
 
                             case ChatFinishReason.ToolCalls:
+                                // Add the assistant message with tool calls to the conversation history.
+                                previousMessages.Add(new AssistantChatMessage(chatCompletion));
+
+                                // Process each tool call.
+                                foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
                                 {
-                                    //first, add the assistant message with tool calls to the conversation history.
-                                    previousMessages.Add(new AssistantChatMessage(chatCompletion));
-
-                                    //then, add a new tool message for each tool call that is resolved.
-                                    foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
+                                    switch (toolCall.FunctionName)
                                     {
-                                        switch (toolCall.FunctionName)
-                                        {
-                                            case nameof(GetDocs):
-                                                {
-                                                    string toolResult = GetDocs(Regex.Match(toolCall.FunctionArguments.ToString(), @"(?<=""filename"":\s*\"")(.*?)(?=\"")").Value);
-                                                    previousMessages.Add(new ToolChatMessage(toolCall.Id, toolResult.ToString()));
-                                                    break;
-                                                }
+                                        case nameof(GetDocs):
+                                            {
+                                                var match = Regex.Match(toolCall.FunctionArguments.ToString(), @"(?<=""filename"":\s*\"")(.*?)(?=\"")");
+                                                string filename = match.Success ? match.Value : "";
+                                                string toolResult = GetDocs(filename);
+                                                previousMessages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                                break;
+                                            }
 
-                                            default:
-                                                {
-                                                    throw new NotImplementedException();
-                                                }
-                                        }
+                                        default:
+                                            throw new NotImplementedException();
                                     }
-
-                                    requiresAction = true;
-                                    break;
                                 }
+
+                                requiresAction = true;
+                                break;
 
                             default:
                                 throw new NotImplementedException(chatCompletion.FinishReason.ToString());
                         }
                     } while (requiresAction);
 
-                    //modify response
+                    // Modify and send the final response.
                     string response = chatCompletion.Content[0].Text;
                     response = response.Replace("Liebo", _client.CurrentUser.Mention);
-                    response = response.Replace("),", ") ,").Replace(").", ") ."); //fix broken markdown
+                    response = response.Replace("),", ") ,").Replace(").", ") ."); // fix broken markdown
 
-                    await message.Channel.SendMessageAsync($"{response}\n-# This text is AI generated. It may contain mistakes. (Output: {chatCompletion.Usage.OutputTokenCount} Token)", messageReference: new MessageReference(message.Id));
+                    await message.Channel.SendMessageAsync(
+                        $"{response}\n-# This text is AI generated. It may contain mistakes. (Output: {chatCompletion.Usage.OutputTokenCount} Token)",
+                        messageReference: new MessageReference(message.Id));
                 }
                 catch (Exception ex)
                 {
-                    //log
-                    var logEmbed = new EmbedBuilder
-                    {
-                        Title = $"AI Chat Error:",
-                        Description = $"Error:\n```{ex.Message}```",
-                        Color = Color.Red,
-                    }
+                    var logEmbed = new EmbedBuilder()
+                    .WithTitle("AI Chat Error:")
+                    .WithDescription($"Error:\n```{ex.Message}```")
+                    .WithColor(Color.Red)
                     .Build();
                     await logchannel.SendMessageAsync(embed: logEmbed);
 
-                    var errorResponseEmbed = new EmbedBuilder
-                    {
-                        Description = $"### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*",
-                        Footer = new EmbedFooterBuilder().WithText($"Liebo v{version}"),
-                    }
+                    var errorResponseEmbed = new EmbedBuilder()
+                    .WithDescription("### *Unfortunately, an error has occurred.*\nI can't answer your question right now.\nThe error has been logged and a solution is already being worked on.\n*Thank you for your understanding!*")
+                    .WithFooter($"Liebo v{version}")
                     .Build();
                     await message.Channel.SendMessageAsync(embed: errorResponseEmbed, messageReference: new MessageReference(message.Id));
                 }
@@ -880,12 +870,15 @@ Note that you do not know everything about LibreChat and your tips may not alway
     {
         //welcome message
         string defaultPf = Path.Combine(Environment.CurrentDirectory, "assets", "default_pf.png");
+        // Create a consistent mention using the display name with a preceding "@"
+        string userDisplayWithAt = "@" + user.DisplayName;
+    
         var welcomeEmbed = new EmbedBuilder
         {
             Author = new EmbedAuthorBuilder().WithName("Welcome!"),
             Title = "A new user has joined! :heart_eyes:",
             ThumbnailUrl = user.GetAvatarUrl() ?? "attachment://default_pf.png",
-            Description = $"Welcome on {guild.Name}, {user.Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Description = $"Welcome on {guild.Name}, {userDisplayWithAt}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.Green,
         }
         .Build();
@@ -897,7 +890,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
         //dm message
         var welcomeUserEmbed = new EmbedBuilder
         {
-            Description = @$"# Welcome on {guild.Name}, {guild.GetUser(user.Id).DisplayName}! 👋
+            Description = @$"# Welcome on {guild.Name}, {userDisplayWithAt}! 👋
             I'm {_client.CurrentUser.Username}, and I'm here to make sure everything works and everyone feels comfortable.  
             If you have any questions, feel free to ask any time!
             Have fun on {guild.Name} 😊",
@@ -910,14 +903,15 @@ Note that you do not know everything about LibreChat and your tips may not alway
         await user.SendMessageAsync(embed: welcomeUserEmbed);
     }
 
-    private async Task UserLeftHandler(SocketGuild guild, SocketUser user)
+    private async Task UserLeftHandler(SocketGuild leftGuild, SocketUser user)
     {
+        string displayName = (user as SocketGuildUser)?.DisplayName ?? user.Username;
+        string userDisplayWithAt = "@" + displayName;
         var goodbyeEmbed = new EmbedBuilder
         {
             Author = new EmbedAuthorBuilder().WithName("Goodbye..."),
-            Title = $"A user has left the server. :pensive:",
-            ThumbnailUrl = user.GetAvatarUrl(),
-            Description = $"{user.Mention} has left...\n-# We are now {guild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Title = "A user has left the server. :pensive:",
+            Description = $"{userDisplayWithAt} has left...\n-# We are now {leftGuild.MemberCount} users • left <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.DarkRed,
         }
         .Build();
