@@ -891,7 +891,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
             Author = new EmbedAuthorBuilder().WithName("Welcome!"),
             Title = "A new user has joined! :heart_eyes:",
             ThumbnailUrl = user.GetAvatarUrl() ?? "attachment://default_pf.png",
-            Description = $"Welcome on {guild.Name}, {user.Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Description = $"Welcome on {guild.Name}, {_client.GetUser(user.Id).Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.Green,
         }
         .Build();
