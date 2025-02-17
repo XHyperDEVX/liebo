@@ -659,8 +659,8 @@ Your request has been saved and if the URL is useful, it will be added soon!
         }
 
         //link whitelist
-        //link check -> deactivated/inactive and not finished
-        if(!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) && !message.Author.IsBot)
+        //link check
+        if(message.Author.IsBot) //!(message.Author as SocketGuildUser).Roles.Any(role => role.Id == link_approved_role.Id) | Outdated for "just bot msgs"
         {  
             UrlDetector parser = new UrlDetector(message.CleanContent, UrlDetectorOptions.Default);
             List<Url> found = parser.Detect();
@@ -891,7 +891,7 @@ Note that you do not know everything about LibreChat and your tips may not alway
             Author = new EmbedAuthorBuilder().WithName("Welcome!"),
             Title = "A new user has joined! :heart_eyes:",
             ThumbnailUrl = user.GetAvatarUrl() ?? "attachment://default_pf.png",
-            Description = $"Welcome on {guild.Name}, {_client.GetUser(user.Id).Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
+            Description = $"Welcome on {guild.Name}, {user.Mention}!\n-# We are now {guild.MemberCount} users • joined <t:{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}:R>",
             Color = Color.Green,
         }
         .Build();
