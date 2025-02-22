@@ -253,20 +253,20 @@ public class Program
     }
     private async Task LogOnlineUsersAsync()
     {
-        using (var writer = new StreamWriter("onlinehistory.csv", true))
+        using (var writer = new StreamWriter(Environment.GetEnvironmentVariable("onlinehistoryfilepath"), true))
         {
             var onlineCount = guild.Users.Count(user => user.Status != UserStatus.Offline && !user.IsBot);
             await writer.WriteLineAsync($"{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()},{onlineCount}");
         }
 
         //delete entries that are older than 24 hours
-        var lines = await File.ReadAllLinesAsync("onlinehistory.csv");
+        var lines = await File.ReadAllLinesAsync(Environment.GetEnvironmentVariable("onlinehistoryfilepath"));
         var filteredLines = lines.Where(line =>
         {
             var timestamp = long.Parse(line.Split(',')[0]);
             return DateTime.UtcNow.AddHours(-24) < DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
         });
-        await File.WriteAllLinesAsync("onlinehistory.csv", filteredLines);
+        await File.WriteAllLinesAsync(Environment.GetEnvironmentVariable("onlinehistoryfilepath"), filteredLines);
     }
     private async Task UpdateStatsChannel()
     {
@@ -305,7 +305,7 @@ public class Program
     {
         ScottPlot.Plot myPlot = new();
 
-        var lines = File.ReadAllLines("onlinehistory.csv");
+        var lines = File.ReadAllLines(Environment.GetEnvironmentVariable("onlinehistoryfilepath"));
 
         // create sample data
         var dataX = new DateTime[lines.Length];
