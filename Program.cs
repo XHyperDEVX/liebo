@@ -14,8 +14,6 @@ using ScottPlot;
 using urldetector;
 using urldetector.detection;
 using Color = Discord.Color;
-using Docker.DotNet;
-using Docker.DotNet.Models;
 
 public class Program
 {
