@@ -14,6 +14,8 @@ using ScottPlot;
 using urldetector;
 using urldetector.detection;
 using Color = Discord.Color;
+using Docker.DotNet;
+using Docker.DotNet.Models;
 
 public class Program
 {
@@ -107,6 +109,9 @@ public class Program
 
         //Start Healthcheck
         HealthCheck();
+
+        //Starte Daily-Restart Timer
+        DailyRestart();
 
         //Start Userstatus logging
         LogOnlineUsersAsync();
@@ -234,6 +239,14 @@ public class Program
         Exception ex = (Exception)e.ExceptionObject;
         Console.WriteLine("\n=========================== Error! ===========================");
         Console.WriteLine($"{ex.Message}\n\n{ex.ToString()}");
+    }
+
+    private void DailyRestart()
+    {
+        var timer = new System.Timers.Timer((DateTime.UtcNow.Date.AddDays(1) - DateTime.UtcNow).TotalMilliseconds);
+        timer.Elapsed += (s, e) => Environment.Exit(0);
+        timer.AutoReset = false; 
+        timer.Start();
     }
 
     //Bot Functions
